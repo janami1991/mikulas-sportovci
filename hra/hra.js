@@ -47,7 +47,7 @@ function woolTex(base,light,dark,seed,long){const S=256,c=document.createElement
       if(long){const l=6+R()*12,a=Math.PI/2+(R()-.5)*.7;x.moveTo(px+ox,py+oy);x.quadraticCurveTo(px+ox+(R()-.5)*6,py+oy+l/2,px+ox+Math.cos(a)*l*.3,py+oy+l)}
       else{const rad=2.5+R()*5,a0=R()*6.3;x.arc(px+ox,py+oy,rad,a0,a0+2.4+R()*2.4)}x.stroke()}}
   x.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
-const TEX={tan:woolTex('#cfac74','#ecd3a2','#9c7a48',11),dark:woolTex('#3b2719','#6a4a33','#1e130b',5,true),cream:woolTex('#e6d6b2','#fbf2de','#bba57c',9),black:woolTex('#161616','#3c3c3c','#040404',13,true)};
+const TEX={tan:woolTex('#cfac74','#ecd3a2','#9c7a48',11),dark:woolTex('#3b2719','#6a4a33','#1e130b',5,true),cream:woolTex('#e6d6b2','#fbf2de','#bba57c',9),black:woolTex('#161616','#3c3c3c','#040404',13,true),hair:woolTex('#b08a5e','#d6b68c','#86663f',17,true)};
 function furM(kind,rx,ry,col,em){const t=TEX[kind].clone();t.needsUpdate=true;t.repeat.set(rx,ry);
   return new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:.04,roughness:1,metalness:0,color:col||0xffffff,emissive:em||0x2a1e10})}
 function lumpy(geo,amp,seed){const p=geo.attributes.position,m=new Map();let r=seed||3;const R=()=>{r=(r*16807)%2147483647;return r/2147483647};
@@ -91,9 +91,11 @@ function makeCert(opt){opt=opt||{};
   const legL=leg(-.15),legR=leg(.15);
   /* tmavá dlouhá kožešina (od pasu po kolena) */
   const V=opt.prda?1:(+opt.v||1),blk=V===5;
-  const skirt=new THREE.Mesh(lumpy(lathe([[.47,.5],[.46,.56],[.44,.75],[.42,.95],[.41,1.02]],26),.05,4),(blk?furM('black',4,1.5,0xffffff,0x050505):furM('dark',4,1.5,0x8c7464,0x0e0804)));skirt.scale.z=.85;
+  /* každý vzhled má trochu jiný odstín kožichu: bunda a rukávy (JT), dlouhá kožešina (ST); 5 = černý kožich se světlými rukávy */
+  const JT=[0,0xf2c58a,0xb8773f,0xfff2d2,0xa49884,0xf2c58a][V],ST=[0,0x8c7464,0x5e3a26,0xb09a86,0x58534e,0][V];
+  const skirt=new THREE.Mesh(lumpy(lathe([[.47,.5],[.46,.56],[.44,.75],[.42,.95],[.41,1.02]],26),.05,4),(blk?furM('black',4,1.5,0xffffff,0x050505):furM('dark',4,1.5,ST,0x0e0804)));skirt.scale.z=.85;
   /* světlá kožešinová bunda */
-  const jacket=new THREE.Mesh(lumpy(lathe([[.47,.94],[.48,.98],[.46,1.1],[.44,1.25],[.46,1.42],[.45,1.55],[.38,1.66],[.22,1.73]],26),.05,6),(blk?furM('black',4,2.4,0xffffff,0x060606):furM('tan',4,2.4,0xf2c58a)));jacket.scale.z=.82;
+  const jacket=new THREE.Mesh(lumpy(lathe([[.47,.94],[.48,.98],[.46,1.1],[.44,1.25],[.46,1.42],[.45,1.55],[.38,1.66],[.22,1.73]],26),.05,6),(blk?furM('black',4,2.4,0xffffff,0x060606):furM('tan',4,2.4,JT)));jacket.scale.z=.82;
   /* opasek, přezka, visící řemeny, řetěz */
   const leather=stdM(0x4a2f1d,{roughness:.6}),iron=stdM(0x8c8c88,{metalness:.7,roughness:.4});
   const belt=new THREE.Mesh(new THREE.TorusGeometry(.47,.035,4,30),leather);belt.rotation.x=Math.PI/2;belt.scale.set(1,.83,1);belt.position.y=1.06;
@@ -116,7 +118,7 @@ function makeCert(opt){opt=opt||{};
   const tongue=new THREE.Mesh(new THREE.BoxGeometry(.085,.46,.02),stdM(0xd3121c,{roughness:.5}));tongue.position.set(0,1.66,.29);tongue.rotation.x=-.15;
   face.add(nose,mouth,teeth);
   /* rohy a růže */
-  const hL=horn(-1),hR=horn(1);hL.position.set(0,2.38,0);hR.position.set(0,2.38,0);hL.scale.setScalar(1.25);hR.scale.setScalar(1.25);
+  const hL=horn(-1),hR=horn(1);hL.position.set(0,2.38,0);hR.position.set(0,2.38,0);hL.scale.setScalar(.75);hR.scale.setScalar(.75);
   const ros=new THREE.Group();
   for(const[x,y]of[[-.07,0],[0,.02],[.07,0]]){const r=new THREE.Group();const core=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),stdM(0xc1121f));r.add(core);
     for(let i=0;i<6;i++){const a=i/6*Math.PI*2,p=new THREE.Mesh(new THREE.SphereGeometry(.028,6,4),stdM(0xe01e2b));p.position.set(Math.cos(a)*.04,Math.sin(a)*.04,-.01);r.add(p)}r.position.set(x,y,0);ros.add(r)}
@@ -127,7 +129,7 @@ function makeCert(opt){opt=opt||{};
   const fr=bellCluster(BELLS_F,1),bk=bellCluster(BELLS_B,-1);
   /* rukávy, tmavé manžety, ruce */
   const arm=(x,sd)=>{const piv=new THREE.Group();piv.position.set(x,1.6,0);
-    const sl=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.14,.16,.58,12,4),.035,sd),blk?furM('cream',1.5,1.4,0xffffff,0x3a3a3a):furM('tan',1.5,1.4,0xf2c58a));sl.position.y=-.29;
+    const sl=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.14,.16,.58,12,4),.035,sd),furM('tan',1.5,1.4,JT));sl.position.y=-.29;
     const cuff=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.17,.18,.18,12,2),.04,sd+1),furM('dark',1.5,.6,0x8c7464,0x0e0804));cuff.position.y=-.64;
     const hand=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);hand.scale.set(.9,1.2,.8);hand.position.y=-.79;piv.add(sl,cuff,hand);return piv};
   const armL=arm(-.52,13),armR=arm(.52,17);
@@ -157,8 +159,11 @@ function makeKonik(){const g=new THREE.Group(),rig=new THREE.Group();g.add(rig);
   const body=new THREE.Mesh(lathe([[.32,1.0],[.36,1.2],[.36,1.45],[.28,1.62],[.14,1.72]],18),sweater);
   const skirt=new THREE.Mesh(lathe([[.52,.5],[.5,.7],[.47,.95],[.44,1.05]],22),red);skirt.scale.z=.9;
   const stripes=new THREE.Group();for(const y of[.6,.68]){const s=new THREE.Mesh(new THREE.TorusGeometry(.515,.012,4,30),white);s.rotation.x=Math.PI/2;s.position.y=y;s.scale.set(1,.9,1);stripes.add(s)}
-  const frill=new THREE.Mesh(lathe([[.5,.88],[.53,.95],[.47,1.06],[.36,1.1]],22),white);frill.scale.z=.9;
-  const ftrim=new THREE.Mesh(new THREE.TorusGeometry(.52,.01,4,30),gold);ftrim.rotation.x=Math.PI/2;ftrim.position.y=.9;
+  /* bílá zástěra vpředu na sukni + pásek v pase */
+  const SK=[[.52,.5],[.5,.7],[.47,.95],[.44,1.05]],skR=y=>{for(let i=1;i<SK.length;i++)if(y<=SK[i][1]){const[ra,a]=SK[i-1],[rb,b]=SK[i];return ra+(rb-ra)*(y-a)/(b-a)}return .44};
+  const apP=[];for(let k=0;k<=8;k++){const y=.74+(1.05-.74)*k/8;apP.push(new THREE.Vector2(skR(y)+.018,y))}
+  const frill=new THREE.Mesh(new THREE.LatheGeometry(apP,16,-.85,1.7),stdM(0xf3f1ec,{roughness:.6,side:THREE.DoubleSide}));frill.scale.z=.9;
+  const ftrim=new THREE.Mesh(new THREE.TorusGeometry(.445,.02,5,30),white);ftrim.rotation.x=Math.PI/2;ftrim.position.y=1.05;ftrim.scale.set(1,.9,1);
   /* koník vpředu */
   const horse=new THREE.Group();const hh=new THREE.Mesh(new THREE.BoxGeometry(.16,.3,.14),brown);const sn=new THREE.Mesh(new THREE.BoxGeometry(.13,.12,.12),brown);sn.position.set(0,-.16,.04);
   const ears=[-.05,.05].map(x=>{const e=new THREE.Mesh(new THREE.ConeGeometry(.025,.08,4),brown);e.position.set(x,.18,0);return e});
@@ -197,7 +202,10 @@ function makeSmrtka(){const g=new THREE.Group(),rig=new THREE.Group();g.add(rig)
   for(const x of[-.065,.065]){const r=new THREE.Mesh(new THREE.CircleGeometry(.05,14),eyeB);r.position.set(x,1.92,.18);const pu=new THREE.Mesh(new THREE.CircleGeometry(.02,10),eyeR);pu.position.set(x+.01,1.92,.182);eyes.add(r,pu)}
   const nose=new THREE.Mesh(new THREE.ConeGeometry(.04,.36,10),white);nose.rotation.x=Math.PI/2+.35;nose.position.set(0,1.8,.33);
   const wreath=new THREE.Group();for(let i=0;i<10;i++){const a=i/10*Math.PI*2,f=new THREE.Mesh(new THREE.SphereGeometry(.035,6,4),red);f.position.set(Math.cos(a)*.15,0,Math.sin(a)*.15);wreath.add(f)}wreath.position.set(0,2.02,.04);
-  const sash=new THREE.Mesh(new THREE.BoxGeometry(.09,.85,.02),red);sash.position.set(.02,1.28,.31);sash.rotation.z=.6;
+  /* červená kravata: uzel a list rovně dolů */
+  const sash=new THREE.Group(),tieS=new THREE.Shape([[-.03,0],[.03,0],[.055,-.27],[0,-.33],[-.055,-.27]].map(([x,y])=>new THREE.Vector2(x,y)));
+  const tie=new THREE.Mesh(new THREE.ExtrudeGeometry(tieS,{depth:.015,bevelEnabled:false}),red);tie.position.set(0,1.555,.3);tie.rotation.x=-.06;
+  const knot=new THREE.Mesh(new THREE.BoxGeometry(.075,.06,.04),red);knot.position.set(0,1.585,.3);sash.add(tie,knot);
   const glove=stdM(0xf7f6f2);const armL=sleeveArm(-.36,white,glove,.64),armR=sleeveArm(.36,white,glove,.64);
   const brush=new THREE.Group();brush.add(new THREE.Mesh(new THREE.BoxGeometry(.07,.05,.22),stdM(0x8a5a32)));const br2=new THREE.Mesh(new THREE.BoxGeometry(.06,.05,.2),stdM(0x2a2018));br2.position.y=-.045;brush.add(br2);brush.position.set(0,-.78,.08);armL.add(brush);
   /* bílá dřevěná kosa s nápisem na kose */
@@ -220,8 +228,18 @@ function makeMikulas(){const g=new THREE.Group(),rig=new THREE.Group();g.add(rig
   const trimB=trimF.clone();trimB.rotation.z+=Math.PI;
   const cross=new THREE.Group();cross.add(new THREE.Mesh(new THREE.BoxGeometry(.08,.5,.015),red),at(new THREE.Mesh(new THREE.BoxGeometry(.32,.08,.015),red),0,.1,0));cross.position.set(0,1.12,.405);cross.rotation.x=-.08;
   const head=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),skin);head.position.y=1.9;
-  const beard=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.18,12,10),.05,51),furM('cream',1,1,0xffffff,0x3a3a36));beard.scale.set(1.15,1.9,.7);beard.position.set(0,1.64,.11);
-  const must=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.07,8,6),.02,52),beard.material);must.scale.set(2,.7,.8);must.position.set(0,1.84,.15);
+  const beard=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.18,12,10),.05,51),furM('cream',1,1,0xffffff,0x3a3a36));beard.scale.set(1.15,1.5,.7);beard.position.set(0,1.56,.11);
+  /* dlouhá část vousů přes ornát až k horní části kříže */
+  const beard2=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.18,12,10),.05,55),beard.material);beard2.scale.set(1.1,1.3,.42);beard2.position.set(0,1.6,.27);beard2.rotation.x=-.38;
+  const must=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.07,8,6),.02,52),beard.material);must.scale.set(2,.7,.8);must.position.set(0,1.815,.16);
+  /* oči, obočí a nos (vousy začínají až pod nosem) */
+  const mface=new THREE.Group();for(const x of[-.058,.058]){const w=new THREE.Mesh(new THREE.SphereGeometry(.026,10,8),stdM(0xffffff,{roughness:.3}));w.position.set(x,1.935,.138);w.scale.z=.6;
+    const pu=new THREE.Mesh(new THREE.SphereGeometry(.013,8,6),stdM(0x2a3f66));pu.position.set(x,1.935,.153);
+    const br=new THREE.Mesh(lumpy(new THREE.SphereGeometry(.03,6,4),.01,54+x*10),beard.material);br.scale.set(1.6,.55,.6);br.position.set(x,1.978,.14);mface.add(w,pu,br)}
+  const mnose=new THREE.Mesh(new THREE.SphereGeometry(.034,10,8),stdM(0xe3a98c));mnose.scale.set(.9,1.1,1);mnose.position.set(0,1.875,.16);mface.add(mnose);
+  /* světle hnědé vlasy pod mitrou: vzadu a po stranách až po ramena, obličej volný */
+  const hairP=[[.172,2.04],[.19,1.96],[.2,1.86],[.195,1.76],[.18,1.68],[.15,1.62]].map(([r,y])=>new THREE.Vector2(r,y));
+  const hair=new THREE.Mesh(lumpy(new THREE.LatheGeometry(hairP,18,.85,Math.PI*2-1.7),.025,53),furM('hair',2,1.2,0xffffff,0x1e140a));hair.material.side=THREE.DoubleSide;hair.position.z=-.01;
   /* mitra */
   const ms=new THREE.Shape();ms.moveTo(-.16,0);ms.lineTo(.16,0);ms.lineTo(.17,.24);ms.quadraticCurveTo(.12,.4,0,.5);ms.quadraticCurveTo(-.12,.4,-.17,.24);ms.lineTo(-.16,0);
   const mg=new THREE.ExtrudeGeometry(ms,{depth:.2,bevelEnabled:true,bevelSize:.02,bevelThickness:.02,bevelSegments:2});mg.translate(0,0,-.1);
@@ -237,7 +255,7 @@ function makeMikulas(){const g=new THREE.Group(),rig=new THREE.Group();g.add(rig
   const b=new THREE.Group();const sh=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,2.2,6),stdM(0xd8d0c0,{metalness:.5,roughness:.4}));sh.position.y=-.35;b.add(sh);
   const sp=[];for(let i=0;i<40;i++){const a=i/40*Math.PI*3.2,r=.14*(1-i/52);sp.push(new THREE.Vector3(0,-1.45-Math.sin(a)*r-r,Math.cos(a)*r-.0))}
   const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sp),60,.018,6,false),gold);b.add(spiral);
-  rig.add(legL,legR,alba,front,back,trimF,trimB,cross,head,beard,must,mitre,mcross,band,fur,armL,armR);return finish3(g,rig,legL,legR,armL,armR,b)}
+  rig.add(legL,legR,alba,front,back,trimF,trimB,cross,head,hair,beard,beard2,must,mface,mitre,mcross,band,fur,armL,armR);return finish3(g,rig,legL,legR,armL,armR,b)}
 function makeRole(r,v){return r==='konik'?makeKonik():r==='smrtka'?makeSmrtka():r==='mikulas'?makeMikulas():r==='napalovac'?makeKid(0):makeCert({prda:r==='prda',v})}
 
 
@@ -352,8 +370,10 @@ function puff(x,z){for(let i=0;i<14;i++){const m=new THREE.Mesh(puffGeo,puffMat)
   puffs.push({m,v:new THREE.Vector3(rnd(-1.6,1.6),rnd(1.5,3.5),rnd(-1.6,1.6)),t:.7,g:groundH(x,z)})}}
 function animAttack(e,dt){const u=e.mesh.userData;e.cool-=dt;if(e.attack<=0){u.attack=false;u.fork.rotation.x=Math.PI;u.fork.rotation.z=0;u.rig.rotation.x=0;u.rig.rotation.y=0;return}
   u.attack=true;e.atkT+=dt;e.attack-=dt;const t=e.atkT,tot=ATK.wind+ATK.strike+ATK.rec;
-  if(e.role==='konik'){/* šavlí máchá kolem sebe (otočka) */const f=Math.min(1,t/tot);u.rig.rotation.y=f*Math.PI*2;u.armR.rotation.x=-1.45;u.armR.rotation.z=.9;u.fork.rotation.x=0;u.armL.rotation.x=-.6;
-    if(f>.45&&!e.hitDone){e.hitDone=true;strikeHit(e)}if(e.attack<=0){e.cool=.08;u.armR.rotation.z=0;u.rig.rotation.y=0}return}
+  if(e.role==='konik'){/* šavlí seká do kříže: shora zprava dolů doleva, pak shora zleva dolů doprava */const f=Math.min(1,t/tot),h=f<.5?f*2:(f-.5)*2,sw=h*h*(3-2*h);
+    const zA=f<.5?.95:-.55,zB=f<.5?-.55:.95;u.armR.rotation.x=-2.7+2.1*sw;u.armR.rotation.z=zA+(zB-zA)*sw;u.armR.rotation.y=0;u.fork.rotation.x=0;u.fork.rotation.z=0;
+    u.armL.rotation.x=-.5;u.rig.rotation.x=.12*sw;u.rig.rotation.y=(f<.5?-.25:.25)*(1-2*sw);
+    if(f>.3&&!e.hitDone){e.hitDone=true;strikeHit(e)}if(e.attack<=0){e.cool=.08;u.armR.rotation.set(0,0,0);u.rig.rotation.set(0,0,0)}return}
   let arm,fk,lean;const ease=x=>x*x*(3-2*x);
   if(t<ATK.wind){const f=ease(t/ATK.wind);arm=-3.25*f;fk=Math.PI+Math.PI*f;lean=-.12*f}
   else if(t<ATK.wind+ATK.strike){const f=(t-ATK.wind)/ATK.strike;arm=-3.25+2.6*f*f;fk=0;lean=-.12+.34*f*f;if(f>.8&&!e.hitDone){e.hitDone=true;strikeHit(e)}}
