@@ -47,7 +47,7 @@ function woolTex(base,light,dark,seed,long){const S=256,c=document.createElement
       if(long){const l=6+R()*12,a=Math.PI/2+(R()-.5)*.7;x.moveTo(px+ox,py+oy);x.quadraticCurveTo(px+ox+(R()-.5)*6,py+oy+l/2,px+ox+Math.cos(a)*l*.3,py+oy+l)}
       else{const rad=2.5+R()*5,a0=R()*6.3;x.arc(px+ox,py+oy,rad,a0,a0+2.4+R()*2.4)}x.stroke()}}
   x.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
-const TEX={tan:woolTex('#cfac74','#ecd3a2','#9c7a48',11),dark:woolTex('#3b2719','#6a4a33','#1e130b',5,true),cream:woolTex('#e6d6b2','#fbf2de','#bba57c',9)};
+const TEX={tan:woolTex('#cfac74','#ecd3a2','#9c7a48',11),dark:woolTex('#3b2719','#6a4a33','#1e130b',5,true),cream:woolTex('#e6d6b2','#fbf2de','#bba57c',9),black:woolTex('#161616','#3c3c3c','#040404',13,true)};
 function furM(kind,rx,ry,col,em){const t=TEX[kind].clone();t.needsUpdate=true;t.repeat.set(rx,ry);
   return new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:.04,roughness:1,metalness:0,color:col||0xffffff,emissive:em||0x2a1e10})}
 function lumpy(geo,amp,seed){const p=geo.attributes.position,m=new Map();let r=seed||3;const R=()=>{r=(r*16807)%2147483647;return r/2147483647};
@@ -90,9 +90,10 @@ function makeCert(opt){opt=opt||{};
     const an=new THREE.Mesh(new THREE.CylinderGeometry(.11,.12,.14,10),bootM);an.position.y=-.55;piv.add(l,an,b,so);return piv};
   const legL=leg(-.15),legR=leg(.15);
   /* tmavá dlouhá kožešina (od pasu po kolena) */
-  const skirt=new THREE.Mesh(lumpy(lathe([[.47,.5],[.46,.56],[.44,.75],[.42,.95],[.41,1.02]],26),.05,4),furM('dark',4,1.5,0x8c7464,0x0e0804));skirt.scale.z=.85;
+  const V=opt.prda?1:(+opt.v||1),blk=V===5;
+  const skirt=new THREE.Mesh(lumpy(lathe([[.47,.5],[.46,.56],[.44,.75],[.42,.95],[.41,1.02]],26),.05,4),(blk?furM('black',4,1.5,0xffffff,0x050505):furM('dark',4,1.5,0x8c7464,0x0e0804)));skirt.scale.z=.85;
   /* světlá kožešinová bunda */
-  const jacket=new THREE.Mesh(lumpy(lathe([[.47,.94],[.48,.98],[.46,1.1],[.44,1.25],[.46,1.42],[.45,1.55],[.38,1.66],[.22,1.73]],26),.05,6),furM('tan',4,2.4,0xf2c58a));jacket.scale.z=.82;
+  const jacket=new THREE.Mesh(lumpy(lathe([[.47,.94],[.48,.98],[.46,1.1],[.44,1.25],[.46,1.42],[.45,1.55],[.38,1.66],[.22,1.73]],26),.05,6),(blk?furM('black',4,2.4,0xffffff,0x060606):furM('tan',4,2.4,0xf2c58a)));jacket.scale.z=.82;
   /* opasek, přezka, visící řemeny, řetěz */
   const leather=stdM(0x4a2f1d,{roughness:.6}),iron=stdM(0x8c8c88,{metalness:.7,roughness:.4});
   const belt=new THREE.Mesh(new THREE.TorusGeometry(.47,.035,4,30),leather);belt.rotation.x=Math.PI/2;belt.scale.set(1,.83,1);belt.position.y=1.06;
@@ -126,11 +127,15 @@ function makeCert(opt){opt=opt||{};
   const fr=bellCluster(BELLS_F,1),bk=bellCluster(BELLS_B,-1);
   /* rukávy, tmavé manžety, ruce */
   const arm=(x,sd)=>{const piv=new THREE.Group();piv.position.set(x,1.6,0);
-    const sl=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.14,.16,.58,12,4),.035,sd),furM('tan',1.5,1.4,0xf2c58a));sl.position.y=-.29;
+    const sl=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.14,.16,.58,12,4),.035,sd),blk?furM('cream',1.5,1.4,0xffffff,0x3a3a3a):furM('tan',1.5,1.4,0xf2c58a));sl.position.y=-.29;
     const cuff=new THREE.Mesh(lumpy(new THREE.CylinderGeometry(.17,.18,.18,12,2),.04,sd+1),furM('dark',1.5,.6,0x8c7464,0x0e0804));cuff.position.y=-.64;
     const hand=new THREE.Mesh(new THREE.SphereGeometry(.075,10,8),skin);hand.scale.set(.9,1.2,.8);hand.position.y=-.79;piv.add(sl,cuff,hand);return piv};
   const armL=arm(-.52,13),armR=arm(.52,17);
   const fork=opt.prda?cagan():forkStick();fork.position.set(0,-.79,0);fork.rotation.x=Math.PI;armR.add(fork);
+  /* varianty masky: 2 a 5 = celá přední část hlavy černá, 3 = okolo očí, nosu a úst, 4 = nad očima */
+  if(V>1){const HP=[[1.76,.22],[1.9,.25],[2.1,.255],[2.28,.245],[2.4,.2]],hr=y=>{for(let i=1;i<HP.length;i++)if(y<=HP[i][0]){const[a,ra]=HP[i-1],[b,rb]=HP[i];return ra+(rb-ra)*(y-a)/(b-a)}return .2};
+    const[y0,y1,ph]={2:[1.78,2.36,1.05],5:[1.78,2.36,1.05],3:[1.84,2.12,.78],4:[2.09,2.36,.95]}[V],pr=[];for(let k=0;k<=10;k++){const y=y0+(y1-y0)*k/10;pr.push(new THREE.Vector2(hr(y)+.035,y))}
+    rig.add(new THREE.Mesh(new THREE.LatheGeometry(pr,18,-ph,ph*2),maskM));face.position.z+=.045;tongue.position.z+=.04}
   rig.add(legL,legR,skirt,jacket,belt,buckle,hang,chain,cape,hood,mask,face,tongue,armL,armR);
   if(!opt.prda)rig.add(hL,hR,harness,fr.g,bk.g,flaps,ros);
   g.userData={legL,legR,armL,armR,fork,rig,bells:opt.prda?[]:fr.list.concat(bk.list)};return g}
@@ -233,7 +238,7 @@ function makeMikulas(){const g=new THREE.Group(),rig=new THREE.Group();g.add(rig
   const sp=[];for(let i=0;i<40;i++){const a=i/40*Math.PI*3.2,r=.14*(1-i/52);sp.push(new THREE.Vector3(0,-1.45-Math.sin(a)*r-r,Math.cos(a)*r-.0))}
   const spiral=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sp),60,.018,6,false),gold);b.add(spiral);
   rig.add(legL,legR,alba,front,back,trimF,trimB,cross,head,beard,must,mitre,mcross,band,fur,armL,armR);return finish3(g,rig,legL,legR,armL,armR,b)}
-function makeRole(r){return r==='konik'?makeKonik():r==='smrtka'?makeSmrtka():r==='mikulas'?makeMikulas():makeCert({prda:r==='prda'})}
+function makeRole(r,v){return r==='konik'?makeKonik():r==='smrtka'?makeSmrtka():r==='mikulas'?makeMikulas():r==='napalovac'?makeKid(0):makeCert({prda:r==='prda',v})}
 
 
 
@@ -270,7 +275,7 @@ const starTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64
 const leader=()=>ents.find(e=>e.role==='mikulas');
 function grpCenter(){let x=0,z=0,n=0;for(const e of ents)if(!e.isPlayer||e.role==='mikulas'){x+=e.pos.x;z+=e.pos.z;n++}return [x/n,z/n]}
 
-function newEnt(role,isPlayer,slot){const m=makeRole(role);scene.add(m);
+function newEnt(role,isPlayer,slot,v){const m=makeRole(role,v);scene.add(m);
   return {role,isPlayer,slot,mesh:m,pos:new THREE.Vector3(),face:Math.PI,phase:rnd(0,6),stamina:100,tired:false,attack:0,atkT:0,hitDone:true,cool:0,
     st:'follow',target:null,chaseT:0,chaseCd:rnd(2,6),jump:0,scareT:0,running:false}}
 function spawnPoint(cx,cz,minD,maxD){for(let k=0;k<60;k++){const a=rnd(0,Math.PI*2),d=rnd(minD,maxD);const x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;
@@ -298,7 +303,9 @@ function resetGame(){
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(6,12);
   ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;timeLeft=CFG.limit;ri=0;
   const s=M.start||[0,0];let pTaken=false;
-  DRUZINA.forEach((r,i)=>{const isP=!pTaken&&r===selChar;if(isP)pTaken=true;const e=newEnt(r,isP,i);
+  /* čerti v družině mají každý jiný vzhled; hráč-čert ten, který si vybral */
+  const cv=[1,2,3,4,5].filter(v=>!(selChar==='cert'&&v===selVar));let ci=0;
+  DRUZINA.forEach((r,i)=>{const isP=!pTaken&&r===selChar;if(isP)pTaken=true;const e=newEnt(r,isP,i,r==='cert'?(isP?selVar:cv[ci++%cv.length]):1);
     const a=i/DRUZINA.length*Math.PI*2;e.pos.set(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(e.pos,.45);ents.push(e);if(isP)player=e});
   player.face=Math.PI;cam.yaw=Math.PI;cam.cur=undefined;
   route=makeRoute(s[0],s[1]);setMarks();planTo(0);
@@ -602,10 +609,27 @@ function drawMap(){const W=mapC.width,R=W/2,sc=W/160,bx=M.box,P=player;
   mx.save();mx.translate(R,R);mx.rotate(cam.yaw);mx.fillStyle='#fff';mx.font='bold 20px sans-serif';mx.textAlign='center';mx.textBaseline='middle';mx.fillText('S',0,-R+16);mx.restore()}
 
 /* ===================== MENU / KONEC ===================== */
-let selChar='cert',selSide='polnak';
-function opts(el,list,sel,cb){el.innerHTML=list.map(o=>`<button type="button" class="opt" data-id="${o.id}" aria-pressed="${o.id===sel}" ${o.off?'disabled':''}>${o.n}<small>${o.d}</small></button>`).join('');
+let selChar=store('obchuzka-postava')||'cert',selSide='polnak',selVar=+store('obchuzka-cert')||1;
+if(!POSTAVY.some(p=>p.id===selChar&&!p.off))selChar='cert';
+function opts(el,list,sel,cb,img){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?'disabled':''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}</button>`).join('');
   el.onclick=e=>{const b=e.target.closest('.opt');if(!b||b.disabled)return;cb(b.dataset.id);el.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b))}}
-opts($('oChar'),POSTAVY,selChar,v=>selChar=v);opts($('oSide'),STRANY,selSide,v=>selSide=v);
+/* miniatury postav: vykreslí se jednou po načtení (celá postava, u čertů detail hlavy) */
+const thumbs=(()=>{let r=null;const cache={};
+  return (key)=>{if(cache[key])return cache[key];const[role,v,head]=key.split(':');
+    if(!r){const c=document.createElement('canvas');c.width=240;c.height=300;r=new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true,preserveDrawingBuffer:true});r.setClearColor(0x000000,0)}
+    const s=new THREE.Scene();s.add(new THREE.HemisphereLight(0xffffff,0x606060,1.05));const d=new THREE.DirectionalLight(0xffffff,.75);d.position.set(2,4,6);s.add(d);
+    const m=makeRole(role,+v||1);s.add(m);m.rotation.y=.35;m.updateMatrixWorld(true);
+    const bb=new THREE.Box3().setFromObject(m),c=bb.getCenter(new THREE.Vector3()),sz=bb.getSize(new THREE.Vector3());
+    const cam=new THREE.PerspectiveCamera(24,240/300,.1,60);let cy=c.y,h=sz.y*1.08;if(head){cy=1.82;h=1.55;c.x=0;c.z=0;m.rotation.y=.2}
+    const dist=h/2/Math.tan(12*Math.PI/180);cam.position.set(c.x,cy+(head?.05:.15),c.z+dist);cam.lookAt(c.x,cy,c.z);r.render(s,cam);
+    s.traverse(o=>{if(o.geometry)o.geometry.dispose()});return cache[key]=r.domElement.toDataURL()}})();
+function fillThumbs(root){const imgs=[...root.querySelectorAll('img[data-th]')].filter(i=>!i.src);let k=0;
+  const step=()=>{const i=imgs[k++];if(!i)return;try{i.src=thumbs(i.dataset.th)}catch(e){console.warn(e)}setTimeout(step,0)};setTimeout(step,30)}
+const VARIANTY=[1,2,3,4,5].map(v=>({id:v,n:String(v)}));
+function charMenu(){opts($('oChar'),POSTAVY,selChar,v=>{selChar=v;store('obchuzka-postava',v);$('varW').classList.toggle('hide',v!=='cert')},o=>o.id+':'+(o.id==='cert'?selVar:1));
+  opts($('oVar'),VARIANTY,selVar,v=>{selVar=+v;store('obchuzka-cert',selVar);const im=$('oChar').querySelector('[data-id=cert] img');if(im)im.src=thumbs('cert:'+selVar)},o=>'cert:'+o.id+':h');
+  $('varW').classList.toggle('hide',selChar!=='cert');fillThumbs($('oVar'));fillThumbs($('oChar'))}
+charMenu();opts($('oSide'),STRANY,selSide,v=>selSide=v);
 $('keysPC').classList.toggle('hide',isTouch);$('keysTouch').classList.toggle('hide',!isTouch);
 function showBest(el){const b=store('obchuzka-rekord');el.textContent=b?`Tvůj rekord: ${b} bodů`:''}
 showBest($('best'));

@@ -54,6 +54,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .opt small{display:block;color:#a0a0a0;font-size:11px;margin-top:2px}
 .opt[aria-pressed=true]{background:#fff;color:#111;border-color:#fff}
 .opt[disabled]{opacity:.4;cursor:not-allowed}
+.opt.pic{padding:6px 6px 8px;font-size:15px;font-weight:600}
+.opt.pic img{display:block;width:100%;aspect-ratio:4/5;object-fit:contain;margin:0 auto 4px;border-radius:8px;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),rgba(255,255,255,0) 70%)}
+.opt.pic[aria-pressed=true] img{background:radial-gradient(circle at 50% 40%,#fff,#dcdcdc 75%)}
+.opts.five{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.opts.five .opt.pic{font-size:14px;padding:4px 4px 6px}
 .big{min-height:52px;border-radius:10px;border:0;background:#fff;color:#111;font-weight:700;font-size:18px}
 .big:hover{background:#e6e6e6}
 .links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -70,7 +75,7 @@ a{color:#fff}
 #zdroj{position:fixed;left:max(6px,env(safe-area-inset-left));bottom:2px;font-size:10px;color:rgba(255,255,255,.45);pointer-events:none}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:#0d0d0d;font-size:16px}
 @media(max-height:500px){#map{width:110px;height:110px}#topBtns{top:max(10px,env(safe-area-inset-top));right:calc(max(10px,env(safe-area-inset-right)) + 120px);flex-direction:row}}
-@media(max-width:600px){.opts{grid-template-columns:repeat(2,minmax(0,1fr))}#map{width:110px;height:110px}#topBtns{top:calc(max(10px,env(safe-area-inset-top)) + 120px)}}
+@media(max-width:600px){#oSide{grid-template-columns:repeat(2,minmax(0,1fr))}#map{width:110px;height:110px}#topBtns{top:calc(max(10px,env(safe-area-inset-top)) + 120px)}}
 </style>
 </head>
 <body>
@@ -84,7 +89,7 @@ a{color:#fff}
   <div class="pill" id="hTime">20:00</div>
  </div>
  <canvas id="map" width="300" height="300" aria-label="Minimapa"></canvas>
- <div id="topBtns"><button class="sbtn" id="bEnd" type="button">Ukončit obchůzku</button><button class="sbtn" id="bPause" type="button">Pauza</button></div>
+ <div id="topBtns"><button class="sbtn" id="bEnd" type="button">Ukončit obchůzku</button><button class="sbtn" id="bPause" type="button">Pauza</button><button class="sbtn" id="bSound" type="button">Zvuk: zap</button></div>
  <div id="staminaL">Výdrž</div>
  <div id="staminaW"><div id="stamina"></div></div>
  <div id="warn" class="hide">Jsi mimo Polňák – domy tady nepočítáme</div>
@@ -105,6 +110,7 @@ a{color:#fff}
   <h1>Mikulášská obchůzka<br>Lidečko</h1>
   <p>Jdi s družinou od domu k domu. Body za dům dostaneš, jen když jsi u něj s ostatními – u domu straš a mezi domy chytej napalovače. Vzhled postav kromě čerta je zatím provizorní.</p>
   <div><div class="lbl">Postava</div><div class="opts" id="oChar"></div></div>
+  <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Vyjít na stranu</button>
   <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>myš (tažení)</b> otáčení kamery</div>
@@ -145,7 +151,7 @@ try{db=await import('../db.js');
   if(db.configured){const m=await Promise.race([db.loadMapa(),new Promise(r=>setTimeout(()=>r(null),8000))]);
     if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
-await load('svet.js');await load('hra.js');
+await load('svet.js');await load('hra.js');load('zvuky.js').catch(()=>{});
 /* odkaz na editor mapy vidí jen správci */
 if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3){document.getElementById('lEditor').classList.remove('hide');document.getElementById('menuLinks').classList.remove('one')}}).catch(()=>{});
 </script>
