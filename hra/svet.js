@@ -13,12 +13,10 @@ function toast(t,ms){const e=$('toast');if(!e)return;e.textContent=t;e.classList
 function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
 
 /* ===================== ÚPRAVY Z EDITORU ===================== */
-/* uložené v prohlížeči (localStorage) nebo v souboru upravy.js (window.UPRAVY); použije se novější */
+/* zdroj nastaví stránka do window.UPRAVY (hra: uložené v databázi, jinak soubor upravy.js; editor: i neuložený koncept z prohlížeče) */
 const UPR_KEY='lidecko-upravy';
 function normUpr(u){u=u&&typeof u==='object'?u:{};u.v=1;u.t=u.t||0;u.b=u.b||{};u.r=u.r||{};u.nr=u.nr||[];u.cesty=u.cesty||{};u.o=u.o||[];u.mod=u.mod||{};u.st=u.st||[];return u}
-const UPR=(()=>{let a=null,b=null;try{a=JSON.parse(localStorage.getItem(UPR_KEY))}catch(e){}
-  if(window.UPRAVY)try{b=JSON.parse(JSON.stringify(window.UPRAVY))}catch(e){}
-  return normUpr(a&&b?((b.t||0)>(a.t||0)?b:a):(a||b))})();
+const UPR=normUpr(window.UPRAVY?JSON.parse(JSON.stringify(window.UPRAVY)):null);
 function saveUpr(){UPR.t=Date.now();try{localStorage.setItem(UPR_KEY,JSON.stringify(UPR));return true}catch(e){return false}}
 
 /* ===================== TERÉN ===================== */
@@ -64,12 +62,18 @@ M.r=roadsEff();
 /* ===================== BUDOVY: data, mřížka pro kolize ===================== */
 const CELL=16, grid=new Map();
 let B=[];
+/* poloha budovy: původní obrys z mapy + posun (mx, mz) a otočení (mr) z editoru kolem původního středu */
+function applyB(b){const b0=M.b[b.i],ov=b.ov,P0=b0.p;let c0x=0,c0z=0;for(const[x,z]of P0){c0x+=x;c0z+=z}c0x/=P0.length;c0z/=P0.length;
+  const mx=+ov.mx||0,mz=+ov.mz||0,a=(+ov.mr||0)*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
+  b.c0=[c0x,c0z];b.tf=(x,z)=>{const dx=x-c0x,dz=z-c0z;return [c0x+mx+dx*ca-dz*sa,c0z+mz+dx*sa+dz*ca]};
+  b.itf=(x,z)=>{const dx=x-c0x-mx,dz=z-c0z-mz;return [c0x+dx*ca+dz*sa,c0z-dx*sa+dz*ca]};
+  b.p=(mx||mz||a)?P0.map(([x,z])=>b.tf(x,z).map(v=>Math.round(v*100)/100)):P0;
+  b.h=ov.h?+ov.h:b0.h;b.r=ov.r!==undefined&&ov.r!==''?+ov.r:b0.r;b._R=undefined;
+  let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9,cx=0,cz=0,gmin=1e9,gs=0;
+  for(const[x,z]of b.p){x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);cx+=x;cz+=z;const g=gyC(x,z);gmin=Math.min(gmin,g);gs+=g}
+  Object.assign(b,{x0,z0,x1,z1,cx:cx/b.p.length,cz:cz/b.p.length,gmin,y0:gs/b.p.length});b.top=b.y0+b.h;return b}
 function makeB(){B=[];grid.clear();
-  M.b.forEach((b0,i)=>{const ov=UPR.b[b0.id]||{};if(ov.del)return;const b={...b0,i,ov};
-    if(ov.h)b.h=+ov.h;if(ov.r!==undefined&&ov.r!=='')b.r=+ov.r;
-    let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9,cx=0,cz=0,gmin=1e9,gs=0;
-    for(const[x,z]of b.p){x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);cx+=x;cz+=z;const g=gyC(x,z);gmin=Math.min(gmin,g);gs+=g}
-    Object.assign(b,{x0,z0,x1,z1,cx:cx/b.p.length,cz:cz/b.p.length,gmin,y0:gs/b.p.length,visited:false});b.top=b.y0+b.h;B.push(b)});
+  M.b.forEach((b0,i)=>{const ov=UPR.b[b0.id]||{};if(ov.del)return;const b={...b0,i,ov,visited:false};applyB(b);B.push(b)});
   for(const b of B){for(let gx=Math.floor(b.x0/CELL);gx<=Math.floor(b.x1/CELL);gx++)for(let gz=Math.floor(b.z0/CELL);gz<=Math.floor(b.z1/CELL);gz++){
     const k=gx+','+gz;if(!grid.has(k))grid.set(k,[]);grid.get(k).push(b)}}}
 makeB();
@@ -261,7 +265,7 @@ function findPath(a,b,G){G=G||GR;/* A* */const N=G.n.length,g=new Float64Array(N
 /* dveře: z editoru, jinak na kraji domu směrem k nejbližší cestě */
 function doorOf(b){const dv=b.ov&&b.ov.dv;let e,t;
   if(dv&&dv.e<b.p.length){e=dv.e;t=dv.t}else{const ni=nearestNode(b.cx,b.cz),[nx,nz]=GR.n[ni]||[b.cx,b.cz+5];const q=distToBuilding(b,nx,nz);e=q.e;t=q.t}
-  const E=edgeOf(b,e);t=clamp(t,Math.min(.5,.7/E.l),Math.max(.5,1-.7/E.l));const cx=E.ax+(E.bx-E.ax)*t,cz=E.az+(E.bz-E.az)*t;
+  const E=edgeOf(b,e),mg=((dv&&+dv.w)||1)/2+.2;t=clamp(t,Math.min(.5,mg/E.l),Math.max(.5,1-mg/E.l));const cx=E.ax+(E.bx-E.ax)*t,cz=E.az+(E.bz-E.az)*t;
   const x=cx+E.nx*1.4,z=cz+E.nz*1.4,ni=nearestNode(x,z),[nx,nz]=GR.n[ni]||[x,z];
   return {x,z,node:ni,road:Math.hypot(nx-cx,nz-cz),e,t,cp:[cx,cz],E}}
 
@@ -273,52 +277,107 @@ const ROOF_OK=['house','residential','yes','detached','barn','semidetached_house
 function wallColor(b){if(b.ov.cs)return new THREE.Color(b.ov.cs);
   return new THREE.Color(b.t==='barn'?0xa0826d:b.t==='garage'||b.t==='shed'?0xb8b8b8:b.t==='industrial'?0xbfc4cc:b.t==='apartments'?0xd9d4c7:WALLS[Math.floor(hash(b.i)*WALLS.length)])}
 function roofColor(b){return b.ov.cr?new THREE.Color(b.ov.cr):b.rc?new THREE.Color('#'+b.rc).lerp(SNOW,.3):SNOW.clone()}
+const GARAGE=['garage','shed','garages'];
+/* střecha: sedlová (s), valbová (v), pultová (u) přes obdélník kolem domu; null = plochá */
+function roofInfo(b){const ov=b.ov,st=ov.st||'a';
+  const autoRoof=ROOF_OK.includes(b.t)&&b.p.length<=8&&(b.r===undefined||b.r>=.8);
+  if(!(st==='s'||st==='v'||st==='u'||(st==='a'&&autoRoof)))return null;
+  let best=0,ang=0;for(let i=0,j=b.p.length-1;i<b.p.length;j=i++){const dx=b.p[i][0]-b.p[j][0],dz=b.p[i][1]-b.p[j][1],l=Math.hypot(dx,dz);if(l>best){best=l;ang=Math.atan2(dz,dx)}}
+  ang+=(+ov.ot||0)*Math.PI/2;
+  const ux=Math.cos(ang),uz=Math.sin(ang),vx=-uz,vz=ux;let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;
+  for(const[x,z]of b.p){const u=(x-b.cx)*ux+(z-b.cz)*uz,v=(x-b.cx)*vx+(z-b.cz)*vz;u0=Math.min(u0,u);u1=Math.max(u1,u);v0=Math.min(v0,v);v1=Math.max(v1,v)}
+  const W=v1-v0;
+  if(st==='a'&&!(Math.abs(b.a)/((u1-u0)*W)>0.72&&W<17))return null;
+  const o=0.45;u0-=o;u1+=o;v0-=o;v1+=o;
+  const low=b.r===undefined||b.r<.8;
+  const rh=st==='u'?(low?Math.min(3,W*.3):b.r):(st!=='a'&&low)?Math.min(4.2,W*0.42):b.r!==undefined?(st==='a'?Math.min(b.r,W*.7):b.r):Math.min(4.2,W*0.42);
+  const k=st==='v'?Math.min((v1-v0)/2,(u1-u0)/2-.1):0;
+  return {st:st==='a'?'s':st,ux,uz,vx,vz,u0,u1,v0,v1,vm:(v0+v1)/2,k,rh,y:b.top,cx:b.cx,cz:b.cz}}
+/* výška střechy v bodě */
+function roofY(R,x,z){if(!R)return null;const u=(x-R.cx)*R.ux+(z-R.cz)*R.uz,v=(x-R.cx)*R.vx+(z-R.cz)*R.vz;
+  if(u<R.u0||u>R.u1||v<R.v0||v>R.v1)return R.y;const hh=(R.v1-R.v0)/2;
+  if(R.st==='u')return R.y+R.rh*(v-R.v0)/(R.v1-R.v0);
+  let t=1-Math.abs(v-R.vm)/hh;if(R.st==='v'&&R.k>0)t=Math.min(t,Math.min(u-R.u0,R.u1-u)/R.k);return R.y+R.rh*clamp(t,0,1)}
+function roofYb(b,x,z){const R=b._R!==undefined?b._R:(b._R=roofInfo(b));const y=roofY(R,x,z);return y===null?b.top:y}
+/* prvky na střeše: střešní okno, vikýř pultový, vikýř sedlový (poloha vůči původnímu středu domu) */
+const ROOF_EL={o:{n:'Střešní okno',w:.8,d:1.1},vp:{n:'Vikýř pultový',w:2.2,h:1.4,d:3},vs:{n:'Vikýř sedlový',w:2.2,h:1.3,d:3}};
+const elOpt=(el,k)=>el[k]!==undefined&&el[k]!==''?+el[k]:ROOF_EL[el.k][k];
+/* poloha a natočení prvku: f = směr dolů po střeše (vodorovně), s = napříč */
+function roofElFrame(b,el){const[x,z]=b.tf(b.c0[0]+el.x,b.c0[1]+el.z),e=.12;
+  let gx=roofYb(b,x+e,z)-roofYb(b,x-e,z),gz=roofYb(b,x,z+e)-roofYb(b,x,z-e),l=Math.hypot(gx,gz);
+  let fx,fz;if(l<1e-4){const R=b._R;fx=R?R.vx:0;fz=R?R.vz:1}else{fx=-gx/l;fz=-gz/l}
+  const a=(+el.rot||0)*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),f=[fx*ca-fz*sa,fx*sa+fz*ca];
+  return {x,z,f,s:[f[1],-f[0]],y:roofYb(b,x,z)}}
+function gbTri(gb,a,b,c,col){const C=col.isColor?col:new THREE.Color(col);
+  const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;
+  for(const p of[a,b,c]){gb.p.push(p[0],p[1],p[2]);gb.n.push(nx/l,ny/l,nz/l);gb.c.push(C.r,C.g,C.b)}}
+const LIT=0xffcf73,DARK=0x1c2638;
+function pushQuad(win,winC,a,b,c,d,col){const C=new THREE.Color(col);win.push(...a,...b,...c,...a,...c,...d);for(let q=0;q<6;q++)winC.push(C.r,C.g,C.b)}
+function roofElement(b,el,gb,win,winC,wall,roofC,frame,seed){const F0=roofElFrame(b,el),{x,z,f,s}=F0,w=elOpt(el,'w'),d=elOpt(el,'d');
+  const P=(sa,fa,y)=>[x+s[0]*sa+f[0]*fa,y,z+s[1]*sa+f[1]*fa],rY=(sa,fa)=>roofYb(b,x+s[0]*sa+f[0]*fa,z+s[1]*sa+f[1]*fa);
+  const lit=el.sv!==undefined&&el.sv!==''?+el.sv:hash(seed)<(b.ov.sv!==undefined&&b.ov.sv!==''?+b.ov.sv:.58);
+  if(el.k==='o'){const fr=new THREE.Color(el.rm||'#3b3f46'),q=(sa,fa,dy)=>P(sa,fa,rY(sa,fa)+dy);
+    gbQuad(gb,q(-w/2,-d/2,.06),q(w/2,-d/2,.06),q(w/2,d/2,.06),q(-w/2,d/2,.06),fr);
+    const i=.08;pushQuad(win,winC,q(-w/2+i,-d/2+i,.09),q(w/2-i,-d/2+i,.09),q(w/2-i,d/2-i,.09),q(-w/2+i,d/2-i,.09),lit?LIT:DARK);return}
+  const h=elOpt(el,'h'),wc=el.c?new THREE.Color(el.c):wall,rc=el.cr?new THREE.Color(el.cr):roofC,fc=new THREE.Color(el.rm||frame);
+  const yF=rY(0,0),yB=rY(0,-d),eave=yF+h,w2=w/2,o=.25,sed=el.k==='vs',gh=sed?w*.4:0,tB=sed?eave:eave+d*.12;
+  for(const sd of[-1,1]){const sa=sd*w2;gbQuad(gb,P(sa,0,rY(sa,0)-.25),P(sa,-d,rY(sa,-d)-.25),P(sa,-d,tB),P(sa,0,eave),wc)}
+  gbQuad(gb,P(-w2,0,rY(-w2,0)-.25),P(w2,0,rY(w2,0)-.25),P(w2,0,eave),P(-w2,0,eave),wc);
+  gbQuad(gb,P(-w2,-d,yB-.25),P(w2,-d,yB-.25),P(w2,-d,tB),P(-w2,-d,tB),wc);
+  if(sed){gbTri(gb,P(-w2,0,eave),P(w2,0,eave),P(0,0,eave+gh),wc);gbTri(gb,P(-w2,-d,eave),P(w2,-d,eave),P(0,-d,eave+gh),wc);
+    const eL=eave-o*gh/w2,rg=eave+gh+.05;
+    for(const sd of[-1,1])gbQuad(gb,P(sd*(w2+o),o,eL),P(0,o,rg),P(0,-d,rg),P(sd*(w2+o),-d,eL),rc)}
+  else gbQuad(gb,P(-w2-o,o,eave+.03-o*.12),P(w2+o,o,eave+.03-o*.12),P(w2+o,-d,tB+.05),P(-w2-o,-d,tB+.05),rc);
+  const ww=Math.max(.3,Math.min(w*.55,w-.4)),wh=Math.max(.3,Math.min(h*.6,h-.3)),Y=yF+Math.max(.3,h*.55),ry=Math.atan2(f[0],f[1]);
+  gbPrim(gb,'box',x+f[0]*.03,Y,z+f[1]*.03,ww+.16,wh+.16,.06,ry,0,fc);
+  const g=(sa,dy)=>[x+s[0]*sa+f[0]*.08,Y+dy,z+s[1]*sa+f[1]*.08];
+  pushQuad(win,winC,g(-ww/2,-wh/2),g(ww/2,-wh/2),g(ww/2,wh/2),g(-ww/2,wh/2),lit?LIT:DARK);
+  gbPrim(gb,'box',x+f[0]*.1,Y,z+f[1]*.1,.05,wh,.03,ry,0,fc);
+  gbPrim(gb,'box',x+f[0]*.14,Y-wh/2-.06,z+f[1]*.14,ww+.25,.07,.2,ry,0,0xf2f5fa)}
+/* okna jedné stěny: vlastní (ov.wo[i]) nebo automaticky; x = vzdálenost od začátku stěny, y = výška středu nad domem */
+function wallWins(b,i,E,door){const ov=b.ov,c=ov.wo&&ov.wo[i];if(c)return c.map(w=>({x:+w.x,y:+w.y,w:+w.w||1.1,h:+w.h||1.2,c:w.c,s:w.s}));
+  if(b.h<4||GARAGE.includes(b.t)||E.l<2)return[];const sz=+ov.ov||1;
+  const cnt=ov.ok&&ov.ok[i]!==undefined?+ov.ok[i]:(E.l<4?0:Math.min(3,Math.floor(E.l/4.2)));if(!cnt)return[];
+  const rows=[];for(let yy=1.9;yy<b.h-.9;yy+=2.8)rows.push(yy);if(!rows.length)rows.push(Math.min(1.9,b.h*.5));
+  const out=[],hw=.55*sz;for(const yy of rows)for(let k=0;k<cnt;k++){const t=(k+1)/(cnt+1)*E.l;
+    if(door&&door.e===i&&yy===rows[0]&&Math.abs(t-door.t*E.l)<hw+.8)continue;out.push({x:t,y:yy,w:1.1*sz,h:1.2*sz})}
+  return out}
+function doorDrawn(b){const dv=b.ov.dv;return dv?!dv.none:!!(b.adr&&!GARAGE.includes(b.t))}
 function houseParts(b){const ov=b.ov,geos=[],win=[],winC=[];
-  const wall=wallColor(b),roofC=roofColor(b),st=ov.st||'a';
+  const wall=wallColor(b),roofC=roofColor(b);b._R=undefined;const R=roofInfo(b);b._R=R;
   const sh=new THREE.Shape(b.p.map(([x,z])=>new THREE.Vector2(x,-z)));
   const base=b.gmin-0.4;let g=new THREE.ExtrudeGeometry(sh,{depth:b.top-base,bevelEnabled:false});g.rotateX(-Math.PI/2);g.translate(0,base,0);if(g.index)g=g.toNonIndexed();
   const n=g.attributes.normal,cols=new Float32Array(n.count*3);
   for(let i=0;i<n.count;i++){const c=n.getY(i)>0.7?roofC:wall;cols[i*3]=c.r;cols[i*3+1]=c.g;cols[i*3+2]=c.b}
   g.setAttribute('color',new THREE.BufferAttribute(cols,3));geos.push(g);
-  /* střecha: sedlová / valbová přes obdélník kolem domu */
-  const autoRoof=ROOF_OK.includes(b.t)&&b.p.length<=8&&(b.r===undefined||b.r>=.8);
-  if(st==='s'||st==='v'||(st==='a'&&autoRoof)){
-    let best=0,ang=0;for(let i=0,j=b.p.length-1;i<b.p.length;j=i++){const dx=b.p[i][0]-b.p[j][0],dz=b.p[i][1]-b.p[j][1],l=Math.hypot(dx,dz);if(l>best){best=l;ang=Math.atan2(dz,dx)}}
-    if(ov.ot)ang+=Math.PI/2;
-    const ux=Math.cos(ang),uz=Math.sin(ang),vx=-uz,vz=ux;let u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;
-    for(const[x,z]of b.p){const u=(x-b.cx)*ux+(z-b.cz)*uz,v=(x-b.cx)*vx+(z-b.cz)*vz;u0=Math.min(u0,u);u1=Math.max(u1,u);v0=Math.min(v0,v);v1=Math.max(v1,v)}
-    const W=v1-v0;
-    if(st!=='a'||(Math.abs(b.a)/((u1-u0)*W)>0.72&&W<17)){
-      const o=0.45;u0-=o;u1+=o;v0-=o;v1+=o;const vm=(v0+v1)/2,rh=(st!=='a'&&(b.r===undefined||b.r<.8))?Math.min(4.2,W*0.42):b.r!==undefined?(st==='a'?Math.min(b.r,W*.7):b.r):Math.min(4.2,W*0.42),y=b.top,P=(u,v,yy)=>[b.cx+u*ux+v*vx,yy,b.cz+u*uz+v*vz];
-      const k=st==='v'?Math.min((v1-v0)/2,(u1-u0)/2-.1):0;
-      const A=P(u0,v0,y),Bq=P(u1,v0,y),Cq=P(u1,v1,y),D=P(u0,v1,y),R0=P(u0+k,vm,y+rh),R1=P(u1-k,vm,y+rh);
-      const pos=[...A,...Bq,...R1,...A,...R1,...R0,...D,...R0,...R1,...D,...R1,...Cq,...A,...R0,...D,...Bq,...Cq,...R1];
-      const cc=[];for(let q=0;q<12;q++)cc.push(roofC.r,roofC.g,roofC.b);const gw=st==='v'?roofC:wall;for(let q=0;q<6;q++)cc.push(gw.r,gw.g,gw.b);
-      geos.push(tris(pos,cc))}}
+  if(R){const{u0,u1,v0,v1,vm,k,rh,y,ux,uz,vx,vz}=R,P=(u,v,yy)=>[b.cx+u*ux+v*vx,yy,b.cz+u*uz+v*vz],cc=[],push=(c,n)=>{for(let q=0;q<n;q++)cc.push(c.r,c.g,c.b)};let pos;
+    if(R.st==='u'){const A=P(u0,v0,y),Bq=P(u1,v0,y),C=P(u1,v1,y+rh),D=P(u0,v1,y+rh),Cb=P(u1,v1,y),Db=P(u0,v1,y);
+      pos=[...A,...Bq,...C,...A,...C,...D, ...A,...Db,...D, ...Bq,...C,...Cb, ...Db,...Cb,...C,...Db,...C,...D];push(roofC,6);push(wall,12)}
+    else{const A=P(u0,v0,y),Bq=P(u1,v0,y),Cq=P(u1,v1,y),D=P(u0,v1,y),R0=P(u0+k,vm,y+rh),R1=P(u1-k,vm,y+rh);
+      pos=[...A,...Bq,...R1,...A,...R1,...R0,...D,...R0,...R1,...D,...R1,...Cq,...A,...R0,...D,...Bq,...Cq,...R1];push(roofC,12);push(R.st==='v'?roofC:wall,6)}
+    geos.push(tris(pos,cc))}
+  const frame=ov.rm||'#dedbd2',fgb=GB();
   /* dveře */
-  let door=null;const hasDoor=ov.dv||b.adr;
-  if(hasDoor&&!['garage','shed','garages'].includes(b.t)){const d=doorOf(b);door=d;const E=d.E,dc=new THREE.Color(ov.dv&&ov.dv.c||'#5a3a24'),fr=new THREE.Color('#d9d4c8');
-    const gb=GB(),cx=d.cp[0]+E.nx*.04,cz=d.cp[1]+E.nz*.04,gh=gyC(d.cp[0],d.cp[1]),dw=(ov.dv&&ov.dv.w)||1,ry=Math.atan2(E.nx,E.nz);
-    gbPrim(gb,'box',cx,gh+1.1,cz,dw+.16,2.32,.06,ry,0,fr);gbPrim(gb,'box',cx+E.nx*.03,gh+1.06,cz+E.nz*.03,dw,2.12,.06,ry,0,dc);
-    gbPrim(gb,'box',cx+E.nx*.1,gh+1.0,cz+E.nz*.1,.08,.08,.06,ry,0,0xc9a227);                         /* klika */
-    gbPrim(gb,'box',d.cp[0]+E.nx*.45,gh+.05,d.cp[1]+E.nz*.45,dw+.6,.3,.8,ry,0,0xb7b3ab);               /* schod */
-    const dg=gbMesh(gb).geometry;geos.push(dg)}
+  let door=null;
+  if(doorDrawn(b)||b.adr){door=doorOf(b);door.drawn=doorDrawn(b)}
+  if(door&&door.drawn){const d=door,E=d.E,dv=ov.dv||{},dc=new THREE.Color(dv.c||'#5a3a24'),fr=new THREE.Color(dv.f||'#d9d4c8');
+    const cx=d.cp[0]+E.nx*.04,cz=d.cp[1]+E.nz*.04,gh=gyC(d.cp[0],d.cp[1]),dw=+dv.w||1,dh=+dv.h||2.12,ry=Math.atan2(E.nx,E.nz);
+    gbPrim(fgb,'box',cx,gh+(dh+.2)/2-.06,cz,dw+.16,dh+.2,.06,ry,0,fr);gbPrim(fgb,'box',cx+E.nx*.03,gh+dh/2,cz+E.nz*.03,dw,dh,.06,ry,0,dc);
+    const kx=cx+E.nx*.1+E.dx*(dw/2-.15),kz=cz+E.nz*.1+E.dz*(dw/2-.15);gbPrim(fgb,'box',kx,gh+Math.min(1,dh*.47),kz,.08,.08,.06,ry,0,0xc9a227);   /* klika */
+    gbPrim(fgb,'box',d.cp[0]+E.nx*.45,gh+.05,d.cp[1]+E.nz*.45,dw+.6,.3,.8,ry,0,0xb7b3ab)}                                                         /* schod */
   /* okna s rámy */
-  if(b.h>=4&&!['garage','shed','garages'].includes(b.t)){const sz=+ov.ov||1,lit=ov.sv!==undefined&&ov.sv!==''?+ov.sv:.58,frame=new THREE.Color(ov.rm||'#dedbd2'),fgb=GB();
-    for(let i=0;i<b.p.length;i++){const E=edgeOf(b,i);if(E.l<2)continue;
-      const cnt=ov.ok&&ov.ok[i]!==undefined?+ov.ok[i]:(E.l<4?0:Math.min(3,Math.floor(E.l/4.2)));if(!cnt)continue;
-      const rows=[];for(let yy=1.9;yy<b.h-.9;yy+=2.8)rows.push(yy);if(!rows.length)rows.push(Math.min(1.9,b.h*.5));
-      const ry=Math.atan2(E.nx,E.nz),hw=0.55*sz,hh=0.6*sz;
-      for(const yy of rows)for(let k=0;k<cnt;k++){const t=(k+1)/(cnt+1)*E.l;
-        if(door&&door.e===i&&yy===rows[0]&&Math.abs(t-door.t*E.l)<hw+.8)continue;
-        const cx=E.ax+E.dx*t+E.nx*0.07,cz=E.az+E.dz*t+E.nz*0.07,Y=yy+b.y0;
-        const isLit=hash(b.i*7+i*3+k+yy*11)<lit;const c=new THREE.Color(isLit?0xffcf73:0x1c2638);
-        const a=[cx-E.dx*hw,Y-hh,cz-E.dz*hw],bb=[cx+E.dx*hw,Y-hh,cz+E.dz*hw],c2=[cx+E.dx*hw,Y+hh,cz+E.dz*hw],d=[cx-E.dx*hw,Y+hh,cz-E.dz*hw];
-        win.push(...a,...bb,...c2,...a,...c2,...d);for(let q=0;q<6;q++)winC.push(c.r,c.g,c.b);
-        gbPrim(fgb,'box',cx-E.nx*.03,Y,cz-E.nz*.03,hw*2+.16,hh*2+.16,.06,ry,0,frame);
-        gbPrim(fgb,'box',cx+E.nx*.02,Y,cz+E.nz*.02,.05,hh*2,.03,ry,0,frame);gbPrim(fgb,'box',cx+E.nx*.02,Y+hh*.25,cz+E.nz*.02,hw*2,.05,.03,ry,0,frame);
-        gbPrim(fgb,'box',cx+E.nx*.1,Y-hh-.06,cz+E.nz*.1,hw*2+.25,.07,.2,ry,0,0xf2f5fa)}}           /* parapet se sněhem */
-    if(fgb.p.length)geos.push(gbMesh(fgb).geometry)}
+  const lit=ov.sv!==undefined&&ov.sv!==''?+ov.sv:.58;
+  for(let i=0;i<b.p.length;i++){const E=edgeOf(b,i),ry=Math.atan2(E.nx,E.nz);
+    wallWins(b,i,E,door&&door.drawn?door:null).forEach((w,k)=>{const hw=w.w/2,hh=w.h/2,fc=new THREE.Color(w.c||frame);
+      const cx=E.ax+E.dx*w.x+E.nx*0.07,cz=E.az+E.dz*w.x+E.nz*0.07,Y=w.y+b.y0;
+      const isLit=w.s!==undefined&&w.s!==''?!!+w.s:hash(b.i*7+i*3+k+Math.round(w.y*11))<lit;
+      pushQuad(win,winC,[cx-E.dx*hw,Y-hh,cz-E.dz*hw],[cx+E.dx*hw,Y-hh,cz+E.dz*hw],[cx+E.dx*hw,Y+hh,cz+E.dz*hw],[cx-E.dx*hw,Y+hh,cz-E.dz*hw],isLit?LIT:DARK);
+      gbPrim(fgb,'box',cx-E.nx*.03,Y,cz-E.nz*.03,hw*2+.16,hh*2+.16,.06,ry,0,fc);
+      gbPrim(fgb,'box',cx+E.nx*.02,Y,cz+E.nz*.02,.05,hh*2,.03,ry,0,fc);gbPrim(fgb,'box',cx+E.nx*.02,Y+hh*.25,cz+E.nz*.02,hw*2,.05,.03,ry,0,fc);
+      gbPrim(fgb,'box',cx+E.nx*.1,Y-hh-.06,cz+E.nz*.1,hw*2+.25,.07,.2,ry,0,0xf2f5fa)})}           /* parapet se sněhem */
+  /* střešní okna a vikýře */
+  (ov.ro||[]).forEach((el,k)=>{if(ROOF_EL[el.k])roofElement(b,el,fgb,win,winC,wall,roofC,frame,b.i*13+k*7)});
+  if(fgb.p.length)geos.push(gbMesh(fgb).geometry);
   return {geos,win,winC,door}}
 /* cedulky s číslem popisným */
 const plateCache=new Map();

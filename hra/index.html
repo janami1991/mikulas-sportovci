@@ -44,25 +44,31 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tbtn.on{background:rgba(255,255,255,.4)}
 
 /* menu */
-.screen{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#1c2a48 0,#0b1424 70%);overflow:auto;padding:20px;touch-action:pan-y}
+.screen{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#2a2a2a 0,#0d0d0d 70%);overflow:auto;padding:20px;touch-action:pan-y}
 .card{width:min(560px,100%);display:grid;gap:16px}
 .card h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1.05;margin:0}
-.card p{margin:0;color:#c9d2e3}
-.lbl{font-size:13px;color:#9aa6bd;margin-bottom:6px}
+.card p{margin:0;color:#cfcfcf}
+.lbl{font-size:13px;color:#a0a0a0;margin-bottom:6px}
 .opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .opt{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-radius:10px;padding:10px 8px;text-align:center;min-height:56px;font-size:14px}
-.opt small{display:block;color:#9aa6bd;font-size:11px;margin-top:2px}
+.opt small{display:block;color:#a0a0a0;font-size:11px;margin-top:2px}
 .opt[aria-pressed=true]{background:#fff;color:#111;border-color:#fff}
 .opt[disabled]{opacity:.4;cursor:not-allowed}
-.big{min-height:52px;border-radius:10px;border:0;background:#ffd166;color:#111;font-weight:700;font-size:18px}
-.keys{font-size:13px;color:#9aa6bd;line-height:1.6}
+.big{min-height:52px;border-radius:10px;border:0;background:#fff;color:#111;font-weight:700;font-size:18px}
+.big:hover{background:#e6e6e6}
+.links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.links.one{grid-template-columns:1fr}
+.big2{min-height:52px;border-radius:10px;border:2px solid #fff;color:#fff;font-weight:700;font-size:17px;display:grid;place-items:center;text-align:center;text-decoration:none;padding:6px 10px}
+.big2:hover{background:rgba(255,255,255,.12)}
+@media(max-width:420px){.links{grid-template-columns:1fr}}
+.keys{font-size:13px;color:#a0a0a0;line-height:1.6}
 .keys b{color:#fff;font-weight:600}
 .res{display:grid;grid-template-columns:1fr auto;gap:6px 16px;font-size:17px}
 .res b{text-align:right}
 .res .tot{border-top:1px solid rgba(255,255,255,.3);padding-top:8px;font-size:20px}
-a{color:#ffd166}
+a{color:#fff}
 #zdroj{position:fixed;left:max(6px,env(safe-area-inset-left));bottom:2px;font-size:10px;color:rgba(255,255,255,.45);pointer-events:none}
-#loading{position:fixed;inset:0;display:grid;place-items:center;background:#0b1424;font-size:16px}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#0d0d0d;font-size:16px}
 @media(max-height:500px){#map{width:110px;height:110px}#topBtns{top:max(10px,env(safe-area-inset-top));right:calc(max(10px,env(safe-area-inset-right)) + 120px);flex-direction:row}}
 @media(max-width:600px){.opts{grid-template-columns:repeat(2,minmax(0,1fr))}#map{width:110px;height:110px}#topBtns{top:calc(max(10px,env(safe-area-inset-top)) + 120px)}}
 </style>
@@ -104,7 +110,7 @@ a{color:#ffd166}
   <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>myš (tažení)</b> otáčení kamery</div>
   <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>. Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
-  <div class="keys"><a href="editor.html">Editor mapy (domy, cesty, ploty, objekty)</a> · <a href="../index.html">← Zpět na web</a></div>
+  <div class="links one" id="menuLinks"><a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a><a class="big2" href="../index.html">← Zpět na web</a></div>
  </div>
 </div>
 
@@ -121,7 +127,7 @@ a{color:#ffd166}
   <div class="res" id="endRes"></div>
   <div class="keys" id="endBest"></div>
   <button class="big" id="bAgain" type="button">Hrát znovu</button>
-  <div class="keys"><a href="../index.html">← Zpět na web</a></div>
+  <div class="links one"><a class="big2" href="../index.html">← Zpět na web</a></div>
  </div>
 </div>
 
@@ -131,7 +137,17 @@ a{color:#ffd166}
 <script src="three.min.js"></script>
 <script src="polnak.js"></script>
 <script src="upravy.js"></script>
-<script src="svet.js"></script>
-<script src="hra.js"></script>
+<script type="module">
+/* úpravy mapy uložené v editoru (databáze); když databáze nejde, zůstane soubor upravy.js */
+const load=s=>new Promise((ok,ko)=>{const e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=ko;document.body.appendChild(e)});
+let db=null;
+try{db=await import('../db.js');
+  if(db.configured){const m=await Promise.race([db.loadMapa(),new Promise(r=>setTimeout(()=>r(null),8000))]);
+    if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
+catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
+await load('svet.js');await load('hra.js');
+/* odkaz na editor mapy vidí jen správci */
+if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3){document.getElementById('lEditor').classList.remove('hide');document.getElementById('menuLinks').classList.remove('one')}}).catch(()=>{});
+</script>
 </body>
 </html>
