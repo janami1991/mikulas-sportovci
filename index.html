@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mikulášská skupina Sportovci</title>
+<style>
+/* Barvy: jen černá, šedá, bílá. Písma: klasická systémová (Georgia pro nadpisy, Arial/Helvetica pro text). */
+:root{
+ --bg:#f4f4f4;--card:#ffffff;--ink:#111111;--mute:#666666;--line:#dddddd;--soft:#ececec;
+ --serif:Georgia,"Times New Roman",Times,serif;
+ --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans);overflow-x:clip}
+h1,h2,h3{font-family:var(--serif);font-weight:400;line-height:1.1;margin:0}
+button,input,select,textarea{font:inherit;font-size:16px;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid #888;outline-offset:2px}
+.btn{min-height:44px;padding:0 18px;border-radius:6px;border:1px solid var(--line);background:var(--card);font-weight:600}
+.btn.p{background:var(--ink);border-color:var(--ink);color:#fff}
+.hide{display:none!important}
+
+/* ===== ÚVODNÍ STRANA ===== */
+#intro{position:relative;min-height:100svh;display:flex;align-items:center;background:#000;color:#fff;overflow:hidden}
+#intro{background:radial-gradient(ellipse at 65% 45%,#2b2b2b 0%,#141414 55%,#080808 100%)}
+#bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+/* papírová fotka s bílým okrajem, dopadá na plochu */
+.print{position:absolute;left:var(--x);top:var(--y);width:var(--w);background:#f2f2f2;padding:8px;
+ box-shadow:0 2px 3px rgba(0,0,0,.5),0 14px 30px rgba(0,0,0,.55);
+ transform:translate(-50%,-50%) rotate(var(--r));animation:drop .9s cubic-bezier(.2,.8,.25,1) both;transition:opacity 1.2s}
+.print img{display:block;width:100%;height:auto;filter:grayscale(100%) contrast(1.05)}
+.print.gone{opacity:0}
+@keyframes drop{from{opacity:0;transform:translate(-50%,-62%) rotate(calc(var(--r) * -1.6)) scale(1.35)}
+ 60%{opacity:1}to{opacity:1;transform:translate(-50%,-50%) rotate(var(--r)) scale(1)}}
+/* levá strana ztmavená kvůli čitelnosti formuláře */
+#intro::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+ background:linear-gradient(90deg,rgba(0,0,0,.9) 0%,rgba(0,0,0,.65) 30%,rgba(0,0,0,0) 55%)}
+.gate{position:relative;z-index:2;width:100%;max-width:1200px;margin:0 auto;padding:48px max(5vw,20px)}
+.gate h1{font-size:clamp(36px,5.5vw,60px);max-width:14ch;margin-bottom:32px}
+.gate .sub{margin:14px 0 28px;color:#ccc;max-width:46ch;font-size:17px}
+.gate form{display:grid;gap:10px;max-width:360px}
+.gate label{font-size:14px;color:#bbb}
+.gate input{min-height:46px;border-radius:6px;border:1px solid #555;padding:0 14px;background:rgba(0,0,0,.45);color:#fff}
+.gate input:focus{border-color:#fff;outline:none}
+.gate .btn.p{background:#fff;border-color:#fff;color:#000;margin-top:6px}
+.gate .guest{background:transparent;border:1px solid #fff;color:#fff}
+.gate .guest:hover{background:rgba(255,255,255,.12)}
+.err{color:#fff;background:rgba(255,255,255,.12);padding:8px 12px;border-radius:6px;font-size:15px}
+
+/* ===== ZEĎ ===== */
+header.top{position:sticky;top:0;z-index:5;background:#111;color:#fff;display:flex;align-items:center;gap:12px;padding:10px max(4vw,14px);flex-wrap:wrap}
+header.top h2{font-size:21px;margin-right:12px}
+nav.menu{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
+nav.menu a{color:#bbb;text-decoration:none;padding:8px 12px;border-radius:6px;white-space:nowrap;font-size:15px}
+nav.menu a:hover{color:#fff;background:#222}
+nav.menu a[aria-current=page]{color:#fff;box-shadow:inset 0 -2px 0 #fff;border-radius:0}
+.who{font-size:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.who .btn{min-height:36px;background:transparent;border-color:#555;color:#fff;font-weight:400}
+main{max-width:688px;margin:0 auto;padding:24px max(4vw,14px) 60px;display:grid;gap:16px}
+.vh{font-size:30px}
+.members{display:grid;gap:10px}
+.mem{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.mem .t{font-size:13px;color:var(--mute)}
+.mem{cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}.mem:hover{border-color:#999}
+.av img,.pfoto img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.av{overflow:hidden}
+.pfoto{width:112px;height:112px;border-radius:50%;background:#333;color:#fff;display:grid;place-items:center;font-family:var(--serif);font-size:44px;overflow:hidden;flex:none}
+.prof{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.prof h2{font-size:30px}
+.pdl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:16px 0 0;font-size:16px}
+.pdl dt{color:var(--mute)}.pdl dd{margin:0;overflow-wrap:anywhere}.pdl a{color:var(--ink)}
+.pf2{display:grid;gap:12px}
+.pf2 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pf2 label{display:grid;gap:4px;font-size:14px;color:var(--mute)}
+.pf2 input,.pf2 select{width:100%;min-height:44px;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:0 12px;color:var(--ink)}
+.pf2 fieldset{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:12px;margin:0}
+.pf2 legend{font-size:14px;color:var(--mute);padding:0 6px}
+.linkbtn{justify-self:start;background:none;border:0;color:inherit;text-decoration:underline;text-underline-offset:3px;padding:0;min-height:36px}
+@media(max-width:600px){.pf2 .g2{grid-template-columns:1fr}}
+/* kronika */
+.kr-years{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+#krNew{justify-self:start}
+.kr-years a{color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 14px;font-size:14px}
+.kr-year{scroll-margin-top:80px;margin-top:12px}
+.kr-year>h2{font-size:44px;border-bottom:1px solid var(--ink);padding-bottom:6px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.kr-year>h2 small{font-family:var(--sans);font-size:14px;color:var(--mute)}
+.kr{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px;margin-top:14px}
+.kr .d{font-size:13px;color:var(--mute);text-transform:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kr h3{font-size:24px;margin:4px 0 10px}
+.kr .tx{overflow-wrap:anywhere;font-family:var(--serif);font-size:17px;line-height:1.65}
+.kr dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:14px 0 0;font-size:15px;border-top:1px solid var(--line);padding-top:12px}
+.kr dt{color:var(--mute)}.kr dd{margin:0}
+.kr .ph3{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:14px}
+.kr .ph3 img{width:100%;aspect-ratio:4/3;object-fit:cover;filter:grayscale(100%);display:block;border-radius:4px}
+.kr .act{display:flex;gap:6px;margin-top:12px}
+.kr .act button{min-height:36px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:0 12px;font-size:14px;color:var(--mute)}
+.krf{display:grid;gap:10px}
+.krf .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.krf label{display:grid;gap:4px;font-size:14px;color:var(--mute)}
+.krf input,.krf textarea,.krf select{width:100%;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:10px 12px;color:var(--ink)}
+.tb{display:flex;gap:4px;flex-wrap:wrap;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;padding:6px;background:var(--soft)}
+.tb button{min-height:34px;min-width:34px;border:1px solid transparent;background:transparent;border-radius:4px;padding:0 8px;font-size:14px}
+.tb button:hover{background:var(--card);border-color:var(--line)}
+.ed{min-height:300px;max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:0 0 6px 6px;background:var(--card);padding:14px 16px;font-family:var(--serif);font-size:17px;line-height:1.65}
+.ed:focus{outline:2px solid #888;outline-offset:-1px}
+.ed:empty::before{content:attr(data-ph);color:var(--mute)}
+.edw{position:relative}
+.ed img{cursor:pointer}.ed img.sel{outline:3px solid var(--ink);outline-offset:2px}
+.imgtb{position:absolute;z-index:3;display:flex;gap:2px;align-items:center;flex-wrap:wrap;background:#111;color:#fff;border-radius:8px;padding:4px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:calc(100% - 12px)}
+.imgtb button{min-height:36px;min-width:36px;background:transparent;border:0;color:#fff;border-radius:6px;padding:0 9px;font-size:14px}
+.imgtb button:hover,.imgtb button[aria-pressed=true]{background:#333}
+.imgtb i{width:1px;height:22px;background:#444;margin:0 3px}
+.imgtb .sz{font-size:12px;color:#aaa;padding:0 4px;min-width:38px;text-align:center}
+.ed img[data-w='25'],.kr .tx img[data-w='25']{width:25%}.ed img[data-w='33'],.kr .tx img[data-w='33']{width:33%}.ed img[data-w='50'],.kr .tx img[data-w='50']{width:50%}.ed img[data-w='66'],.kr .tx img[data-w='66']{width:66%}.ed img[data-w='75'],.kr .tx img[data-w='75']{width:75%}
+.ed img[data-al=l],.kr .tx img[data-al=l]{float:left;margin:4px 18px 10px 0}
+.ed img[data-al=r],.kr .tx img[data-al=r]{float:right;margin:4px 0 10px 18px}
+.ed::after,.kr .tx::after{content:"";display:table;clear:both}
+@media(max-width:500px){.kr .tx img[data-al]{float:none;margin:12px auto;width:100%}}
+.ed img,.kr .tx img{display:block;max-width:100%;height:auto;margin:12px auto;border-radius:4px}
+.ed.bw img,.kr.bw .tx img{filter:grayscale(100%)}
+.chk{display:flex!important;grid-template-columns:none;align-items:center;gap:10px!important;font-size:15px!important;color:var(--ink)!important;min-height:44px;cursor:pointer}
+.chk input{width:20px!important;height:20px;margin:0;accent-color:#111}
+.ed table,.kr .tx table{border-collapse:collapse;max-width:100%}.ed td,.ed th,.kr .tx td,.kr .tx th{border:1px solid var(--line);padding:4px 8px}
+.kr .tx h2,.kr .tx h3,.ed h2,.ed h3{font-size:21px;margin:18px 0 6px}
+.kr .tx p,.ed p{margin:0 0 10px}
+@media(max-width:600px){.krf .g2{grid-template-columns:1fr}.kr-year>h2{font-size:36px}}
+.box{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px}
+.box h3{font-size:18px;margin-bottom:10px}
+.lv{display:grid;gap:8px;font-size:15px}
+.lv div{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap;border:1px solid var(--ink)}
+.l1{background:transparent;color:var(--ink)}
+.l2{background:#d6d6d6;border-color:#d6d6d6;color:var(--ink)}
+.l3{background:var(--ink);color:#fff}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button,.types button{min-height:36px;border-radius:99px;border:1px solid var(--line);background:transparent;padding:0 12px;font-size:14px}
+.filters button[aria-pressed=true],.types button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+#q{width:100%;min-height:44px;border-radius:6px;border:1px solid var(--line);background:var(--card);padding:0 12px}
+.feed{display:grid;gap:16px;align-content:start}
+.compose textarea,.compose input,.compose select{width:100%;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:10px 12px}
+.compose textarea{min-height:90px;resize:vertical}
+.types{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.extra{display:grid;gap:8px;margin-bottom:10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.row label{font-size:15px;color:var(--mute);display:flex;gap:8px;align-items:center}
+.row select{width:auto;min-height:44px}
+.post{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ph{display:flex;gap:12px;align-items:center;padding:14px 16px 6px}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--serif);font-size:18px;color:#fff;background:#333;flex:none}
+.ph .n{font-weight:600;line-height:1.2}.ph .t{font-size:13px;color:var(--mute)}
+.ph .sp{flex:1}
+.ph select{min-height:34px;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:0 6px;font-size:14px}
+.pb{padding:4px 16px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.media img,.media video{display:block;width:100%;max-height:520px;object-fit:cover;background:#000}
+.ev{margin:4px 16px 12px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:12px}
+.cal{width:60px;text-align:center;border-radius:6px;overflow:hidden;border:1px solid var(--ink)}
+.cal b{display:block;background:var(--ink);color:#fff;font-size:12px;padding:2px 0;font-weight:600}
+.cal span{display:block;font-family:var(--serif);font-size:26px;line-height:1.35}
+.ev .m{font-size:15px;color:var(--mute)}
+.file{margin:4px 16px 12px;display:flex;gap:12px;align-items:center;border:1px dashed #bbb;border-radius:8px;padding:12px}
+.file svg{flex:none}
+.file a{color:var(--ink);font-weight:600;overflow-wrap:anywhere}
+.vlink{margin:4px 16px 12px;display:block;color:var(--ink);font-weight:600;overflow-wrap:anywhere}
+.pf{display:flex;gap:4px;border-top:1px solid var(--line);padding:4px 8px;flex-wrap:wrap}
+.pf button{min-height:40px;background:transparent;border:0;border-radius:6px;padding:0 10px;color:var(--mute);font-size:14px}
+.pf button:hover{background:var(--soft)}
+.pf .on{color:var(--ink);font-weight:700}
+.cm{padding:0 16px 12px;display:grid;gap:8px}
+.cm p{margin:0;background:var(--soft);border-radius:6px;padding:6px 10px;font-size:15px}
+.cm form{display:flex;gap:8px}.cm input{flex:1;min-height:40px;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:0 10px}
+.empty{text-align:center;color:var(--mute);padding:40px 16px}
+.note{font-size:13px;color:var(--mute)}
+.lock{font-size:15px;color:var(--mute);text-align:center;padding:14px;border:1px dashed #bbb;border-radius:8px}
+@media(max-width:700px){header.top h2{flex:1}nav.menu{order:3;flex-basis:100%}nav.menu a{padding:8px 7px;font-size:14px}}
+@media(max-width:600px){#intro{align-items:flex-end}#intro::after{background:linear-gradient(0deg,rgba(0,0,0,.95) 0%,rgba(0,0,0,.75) 55%,rgba(0,0,0,.2) 100%)}}
+@media(prefers-reduced-motion:reduce){.print{animation:none}}
+
+.busy{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#111;color:#fff;padding:7px 14px;border-radius:8px;font-size:14px;z-index:50}
+.setup{display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.3)}
+.setup label{display:grid;gap:4px}
+img.broken{min-height:60px;background:#ddd}
+img[data-mid]:not([src]){min-height:120px;background:#e9e9e9}
+</style>
+</head>
+<body>
+
+<section id="intro">
+ <div id="bg" aria-hidden="true"></div>
+ <div class="gate">
+  <h1>Mikulášská skupina Sportovci</h1>
+  <form id="login" autocomplete="on">
+   <label for="u">Uživatelské jméno</label>
+   <input id="u" name="username" autocomplete="username" required>
+   <label for="pw">Heslo</label>
+   <input id="pw" name="password" type="password" autocomplete="current-password" required>
+   <div id="lerr" class="err hide" role="alert"></div>
+   <button class="btn p" type="submit">Přihlásit se</button>
+   <button class="btn guest" type="button" id="guest">Pokračovat jako host</button>
+  </form>
+ </div>
+</section>
+
+<div id="app" class="hide">
+ <header class="top">
+  <h2>MIKULÁŠ SPORTOVCI</h2>
+  <nav class="menu" id="menu" aria-label="Hlavní menu">
+   <a href="#nastenka">Nástěnka</a><a href="#fotky">Fotky</a><a href="#videa">Videa</a><a href="#udalosti">Události</a><a href="#clenove">Členové</a><a href="#kronika">Kronika</a><a href="hra/index.html">Hra</a>
+  </nav>
+  <div class="who"><a href="#profil" id="whoName" style="color:#fff;text-decoration:none;display:flex;align-items:center;gap:8px"></a><span id="whoGuest"></span><button class="btn" id="out">Odhlásit</button></div>
+ </header>
+ <main>
+  <h1 class="vh" id="vtitle">Nástěnka</h1>
+  <input id="q" type="search" placeholder="Hledat" aria-label="Hledat">
+  <div class="feed">
+   <button class="btn p hide" id="cNew" type="button" style="justify-self:start">Nový příspěvek</button>
+   <form class="box compose hide" id="compose">
+    <h3>Nový příspěvek</h3>
+    <textarea id="ctext" placeholder="Co je nového?"></textarea>
+    <div class="types" id="ctypes"></div>
+    <div class="extra" id="cextra"></div>
+    <div class="row">
+     <label for="clevel">Kdo uvidí:
+      <select id="clevel"></select>
+     </label>
+     <span style="display:flex;gap:8px"><button class="btn" type="button" id="cCancel">Zrušit</button><button class="btn p" type="submit">Zveřejnit</button></span>
+    </div>
+    <div id="cerr" class="note" role="alert"></div>
+   </form>
+   <div class="lock hide" id="guestLock">Jako host vidíte jen veřejné příspěvky. Přihlaste se, abyste mohli psát a vidět obsah pro členy.</div>
+   <div id="posts" class="feed"></div>
+   <div id="members" class="members hide"></div>
+   <div id="profil" class="hide"></div>
+   <div id="kronika" class="hide">
+    <button class="btn p hide" id="krNew" type="button">Nový zápis do kroniky</button>
+    <form class="box krf hide" id="krForm">
+     <h3 id="krFormT">Nový zápis</h3>
+     <div class="g2"><label>Ročník<input id="kRok" type="number" min="1900" max="2100" required></label>
+      <label>Datum<input id="kDatum" type="date"></label></div>
+     <label>Nadpis<input id="kNadpis" required placeholder="např. Obchůzka 2025"></label>
+     <div>
+      <div class="tb" id="kTb" role="toolbar" aria-label="Formátování">
+       <button type="button" data-cmd="bold"><b>B</b></button><button type="button" data-cmd="italic"><i>I</i></button>
+       <button type="button" data-cmd="h">Nadpis</button><button type="button" data-cmd="insertUnorderedList">Seznam</button>
+       <button type="button" data-cmd="img">Vložit obrázek</button><button type="button" data-cmd="removeFormat">Zrušit formát</button>
+      </div>
+      <div class="edw" id="kWrap">
+      <div class="imgtb hide" id="imgTb" role="toolbar" aria-label="Úprava obrázku">
+       <button type="button" data-a="minus" title="Zmenšit">− Menší</button><button type="button" data-a="plus" title="Zvětšit">+ Větší</button><span class="sz" id="imgSz"></span>
+       <i></i><button type="button" data-a="rl" title="Otočit doleva">↺</button><button type="button" data-a="rr" title="Otočit doprava">↻</button>
+       <i></i><button type="button" data-a="l">Vlevo</button><button type="button" data-a="c">Na střed</button><button type="button" data-a="r">Vpravo</button>
+       <i></i><button type="button" data-a="del">Smazat</button>
+      </div>
+      <div class="ed" id="kEd" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Text zápisu" data-ph="Napište zápis, nebo sem vložte text i s obrázky z Wordu (Ctrl+C, Ctrl+V)."></div>
+      </div>
+      <input type="file" id="kImg" accept="image/*" multiple class="hide">
+     </div>
+     <label class="chk"><input type="checkbox" id="kBw"> Obrázky pouze černobílé</label>
+     <label style="max-width:260px">Kdo uvidí<select id="kLvl"></select></label>
+     <div class="note" id="krErr" role="alert"></div>
+     <div class="row"><button class="btn" type="button" id="krCancel">Zrušit</button><button class="btn p" type="submit">Uložit zápis</button></div>
+    </form>
+    <div class="kr-years" id="krYears"></div>
+    <div id="krList"></div>
+   </div>
+  </div>
+ </main>
+</div>
+
+<script type="module">
+import * as DB from './db.js';
+
+/* =====================================================================
+   FOTKY NA ÚVODNÍ STRANĚ
+   Fotky dejte do složky "media" vedle index.html a zapište sem jejich názvy.
+   Na stránce se zobrazí černobíle, i když jsou barevné.
+   ===================================================================== */
+const FOTKY = [
+  'media/foto1.jpg','media/foto2.jpg','media/foto3.jpg','media/foto4.jpg',
+  'media/foto5.jpg','media/foto6.jpg','media/foto7.jpg','media/foto8.jpg',
+];
+const INTERVAL = 3.5;   // po kolika sekundách dopadne další fotka
+const NA_STOLE  = 7;    // kolik fotek je nejvýš vidět najednou
+
+{
+/* ---------- fotky dopadající na plochu ---------- */
+const bg=document.getElementById('bg');
+let ok=[],order=[],timer=null,lastX=null;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+FOTKY.forEach(src=>{const im=new Image();im.onload=()=>{ok.push(src);if(ok.length===1&&!timer)start()};im.src=src});
+function pick(){if(!order.length)order=[...ok].sort(()=>Math.random()-.5);return order.pop()}
+function drop(){
+ const src=pick();if(!src)return;
+ const mob=innerWidth<600;
+ let x;do{x=mob?rnd(15,85):rnd(50,88)}while(lastX!==null&&Math.abs(x-lastX)<12);lastX=x;
+ const d=document.createElement('div');d.className='print';
+ d.style.setProperty('--x',x+'%');d.style.setProperty('--y',(mob?rnd(10,30):rnd(22,74))+'%');
+ d.style.setProperty('--r',rnd(-14,14).toFixed(1)+'deg');
+ d.style.setProperty('--w',mob?'clamp(120px,38vw,180px)':'clamp(170px,19vw,290px)');
+ const im=new Image();im.src=src;im.alt='';d.appendChild(im);bg.appendChild(d);
+ const all=bg.querySelectorAll('.print:not(.gone)');
+ if(all.length>NA_STOLE){const o=all[0];o.classList.add('gone');setTimeout(()=>o.remove(),1300)}
+}
+function start(){clearInterval(timer);drop();timer=setInterval(drop,INTERVAL*1000)}
+function stop(){clearInterval(timer);timer=null}
+
+/* ---------- aplikace (data v databázi Firebase, viz db.js) ---------- */
+const ROLE={1:'Host',2:'Člen',3:'Správce'};
+const LVL={1:'1 · Všichni',2:'2 · Registrovaní',3:'3 · Správci'};
+const TYPES={text:'Text',photo:'Fotka',video:'Video',event:'Událost',file:'Soubor'};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+let POSTS=[],KR=[],MEMS={};          /* MEMS: přihlašovací jméno → člen */
+let me=null,ftype='all',ctype='text',open=new Set();
+const role=()=>me?me.role:1;
+const pl=n=>n+' '+(n===1?'příspěvek':n>=2&&n<=4?'příspěvky':'příspěvků');
+const uname=(u,fallback)=>MEMS[u]?.name||fallback||u;
+const avatar=(u,fallback)=>{const x=MEMS[u];return x?.foto?`<img src="${esc(x.foto)}" alt="">`:esc((x?.name||fallback||u||'?')[0])};
+const ago=t=>{const m=Math.round((Date.now()-t)/6e4);return m<1?'právě teď':m<60?`před ${m} min`:m<1440?`před ${Math.round(m/60)} h`:new Date(t).toLocaleDateString('cs-CZ')};
+function busy(on,t){let b=$('busy');if(!b){b=document.createElement('div');b.id='busy';b.className='busy';document.body.appendChild(b)}b.textContent=t||'Načítám…';b.classList.toggle('hide',!on)}
+const fail=(e,el)=>{console.error(e);const t=e&&e.message&&!/^Firebase|permission|Missing/i.test(e.message)?e.message:'Akce se nepodařila (chyba spojení nebo oprávnění).';if(el){$(el).textContent=t;$(el).classList?.remove('hide')}else alert(t)};
+
+/* ---------- načtení dat ---------- */
+async function loadAll(){busy(true);
+ try{const [p,k,m]=await Promise.all([DB.posts(),DB.kronika(),me?DB.members():Promise.resolve([])]);
+  POSTS=p.sort((a,b)=>b.ts-a.ts);KR=k;MEMS={};m.forEach(x=>MEMS[x.jmeno]=x);
+  if(me&&MEMS[me.jmeno])me={...me,...MEMS[me.jmeno],id:me.jmeno}}
+ catch(e){fail(e)}busy(false)}
+async function enter(member){
+ me=member?{...member,id:member.jmeno}:null;selMem=null;editId=null;
+ $('intro').classList.add('hide');$('app').classList.remove('hide');stop();
+ await loadAll();
+ $('whoName').innerHTML=me?`<span class="av" style="width:30px;height:30px;font-size:14px">${avatar(me.id)}</span>${esc(me.name)}`:'';$('whoGuest').textContent=me?'':'Host';
+ $('menu').querySelector('[href="#clenove"]').classList.toggle('hide',!me);
+ $('clevel').innerHTML=[1,2,3].filter(l=>l<=role()).map(l=>`<option value="${l}">${LVL[l]}</option>`).join('');
+ $('clevel').value=Math.min(2,role());
+ renderExtra();route();window.scrollTo(0,0);
+}
+$('login').addEventListener('submit',async e=>{e.preventDefault();if(!DB.configured)return;
+ const u=$('u').value,p=$('pw').value;$('lerr').classList.add('hide');busy(true,'Přihlašuji…');
+ try{const m=await DB.login(u,p);$('pw').value='';busy(false);enter(m)}catch(err){busy(false);$('lerr').textContent=err.message;$('lerr').classList.remove('hide')}});
+$('guest').onclick=()=>{if(DB.configured)enter(null)};
+$('out').onclick=async()=>{await DB.logout();me=null;MEMS={};$('app').classList.add('hide');$('intro').classList.remove('hide');if(ok.length)start();window.scrollTo(0,0)};
+
+/* ---------- start: nenapojený web / založení prvního správce / obnovení přihlášení ---------- */
+(async()=>{
+ if(!DB.configured){$('lerr').innerHTML='Web ještě není napojený na databázi. Postup je v souboru <b>NAVOD.md</b>.';$('lerr').classList.remove('hide');return}
+ let zal=true;try{zal=await DB.founded()}catch(e){$('lerr').textContent='Nepodařilo se spojit s databází.';$('lerr').classList.remove('hide')}
+ if(!zal){const f=$('login');f.insertAdjacentHTML('beforeend',`<div class="setup" id="setup"><p><b>Založení webu</b> – zatím tu není žádný správce. Vytvořte první účet správce:</p>
+   <label>Přihlašovací jméno<input id="sU" autocomplete="off" placeholder="např. novak"></label><label>Jméno a příjmení<input id="sN"></label>
+   <label>Heslo (aspoň 6 znaků)<input id="sP" type="password" autocomplete="new-password"></label><div id="sE" class="err hide" role="alert"></div>
+   <button class="btn p" type="button" id="sGo">Založit správce</button></div>`);
+  $('sGo').onclick=async()=>{const j=$('sU').value.trim().toLowerCase(),n=$('sN').value.trim(),p=$('sP').value;
+   if(!DB.okName(j)){$('sE').textContent='Jméno: 3–30 znaků, malá písmena bez diakritiky, čísla, tečka, pomlčka.';$('sE').classList.remove('hide');return}
+   if(!n||p.length<6){$('sE').textContent='Vyplňte jméno a heslo (aspoň 6 znaků).';$('sE').classList.remove('hide');return}
+   busy(true,'Zakládám…');try{const m=await DB.found(j,n,p);busy(false);$('setup').remove();enter(m)}catch(e){busy(false);fail(e,'sE')}}}
+ const m=await DB.whenReady();if(m)enter(m);
+})();
+
+const VIEWS={nastenka:['Nástěnka','all'],fotky:['Fotky','photo'],videa:['Videa','video'],udalosti:['Události','event'],clenove:['Členové',null],kronika:['Kronika',null],profil:['Můj profil',null]};
+let view='nastenka';
+function route(){
+ view=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'nastenka';
+ if(!me&&(view==='clenove'||view==='profil'))view='nastenka';
+ if(view!=='clenove')selMem=null;if(view!=='profil')editId=null;
+ ftype=VIEWS[view][1];$('vtitle').textContent=VIEWS[view][0];
+ document.querySelectorAll('#menu a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+view)&&a.setAttribute('aria-current','page'));
+ const mem=view==='clenove',kr=view==='kronika',pr=view==='profil',other=mem||kr||pr;
+ $('members').classList.toggle('hide',!mem);$('profil').classList.toggle('hide',!pr);$('q').classList.toggle('hide',pr);$('kronika').classList.toggle('hide',!kr);$('posts').classList.toggle('hide',other);
+ composeClose();$('cNew').classList.toggle('hide',!me||other);$('guestLock').classList.toggle('hide',!!me||other);
+ $('krNew').classList.toggle('hide',role()<3);if(!kr||role()<3)$('krForm').classList.add('hide');
+ $('q').placeholder=mem?'Hledat člena':kr?'Hledat v kronice':'Hledat v příspěvcích';
+ if(me&&ftype&&ftype!=='all'&&TYPES[ftype]){ctype=ftype;$('ctypes').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.t===ctype));renderExtra()}
+ render();
+}
+addEventListener('hashchange',()=>{if(!$('app').classList.contains('hide')){route();scrollTo(0,0)}});
+$('q').oninput=()=>render();
+
+$('ctypes').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button type="button" data-t="${k}" aria-pressed="${k==='text'}">${v}</button>`).join('');
+$('ctypes').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;ctype=b.dataset.t;
+ $('ctypes').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderExtra()};
+function renderExtra(){
+ const x={text:'',
+  photo:'<input type="file" id="cfile" accept="image/*" aria-label="Vyberte fotku"><span class="note">Fotka se před uložením zmenší.</span>',
+  video:'<input id="curl" type="url" placeholder="Odkaz na YouTube nebo jiný web"><span class="note">Video nahrajte na YouTube (třeba jako neveřejné) a vložte sem odkaz – na samotná videa nemá bezplatná databáze místo.</span>',
+  event:'<input id="edate" type="date" aria-label="Datum"><input id="etime" type="time" aria-label="Čas"><input id="eplace" placeholder="Místo">',
+  file:'<input type="file" id="cfile" aria-label="Vyberte soubor"><span class="note">Max. 5 MB.</span>'}[ctype];
+ $('cextra').innerHTML=x;
+}
+function composeOpen(){$('compose').classList.remove('hide');$('cNew').classList.add('hide');$('ctext').focus()}
+function composeClose(){$('compose').classList.add('hide');$('cerr').textContent='';$('cNew').classList.toggle('hide',!me||['clenove','kronika','profil'].includes(view))}
+$('cNew').onclick=composeOpen;$('cCancel').onclick=composeClose;
+const readFile=f=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=ko;r.readAsDataURL(f)});
+/* zmenšení fotky pro uložení (delší strana max. 1600 px) */
+function fitImage(url,max,q){return new Promise(ok=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,max/Math.max(im.width,im.height));
+ const c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);
+ x.drawImage(im,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',q||.82))};im.onerror=()=>ok(null);im.src=url})}
+let posting=false;
+$('compose').addEventListener('submit',async e=>{e.preventDefault();if(!me||posting)return;
+ const text=$('ctext').value.trim(),level=Math.min(+$('clevel').value,role());
+ const p={author:me.id,authorName:me.name,type:ctype,level,ts:Date.now(),text,likes:[],comments:[]};
+ const f=$('cfile')?.files?.[0];
+ if(ctype==='photo'&&!f){$('cerr').textContent='Vyberte fotku.';return}
+ if(ctype==='file'&&!f){$('cerr').textContent='Vyberte soubor.';return}
+ if(ctype==='file'&&f.size>5e6){$('cerr').textContent='Soubor je moc velký (max. 5 MB).';return}
+ if(ctype==='video'){const u=$('curl').value.trim();if(/^https?:\/\//.test(u))p.link=u;else{$('cerr').textContent='Vložte odkaz na video.';return}}
+ if(ctype==='event'){const d=$('edate').value;if(!d){$('cerr').textContent='Zadejte datum události.';return}p.ev={date:d,time:$('etime').value,place:$('eplace').value.trim()}}
+ if(!text&&ctype==='text'){$('cerr').textContent='Napište text příspěvku.';return}
+ posting=true;$('cerr').textContent='Ukládám…';
+ try{
+  if(ctype==='photo'){const url=await fitImage(await readFile(f),1600);if(!url)throw new Error('Fotku se nepodařilo načíst.');p.media=await DB.putMedia(url,level)}
+  if(ctype==='file')p.file={name:f.name,size:(f.size/1024).toFixed(0)+' kB',media:await DB.putMedia(await readFile(f),level,f.name)};
+  p.id=await DB.addPost(p);POSTS.unshift(p);$('cerr').textContent='';$('ctext').value='';renderExtra();composeClose();render()}
+ catch(err){fail(err,'cerr')}posting=false;
+});
+
+const ICON_FILE='<svg width="30" height="36" viewBox="0 0 34 40" aria-hidden="true"><path d="M3 3h19l9 9v25H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M22 3v9h9" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const MONTH=['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj','lis','pro'];
+const ytId=u=>(u.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/)||[])[1];
+function body(p){
+ let h=p.text?`<div class="pb">${esc(p.text)}</div>`:'';
+ if(p.type==='photo'&&p.media)h+=`<div class="media"><img data-mid="${esc(p.media)}" alt="Fotka od ${esc(uname(p.author,p.authorName))}"></div>`;
+ if(p.type==='video'&&p.link){const id=ytId(p.link);
+  h+=id?`<div class="media" style="aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/${esc(id)}" style="width:100%;height:100%;border:0" allow="encrypted-media; picture-in-picture" allowfullscreen title="Video"></iframe></div><a class="vlink" href="${esc(p.link)}" target="_blank" rel="noopener">Otevřít na YouTube</a>`
+   :`<a class="vlink" href="${esc(p.link)}" target="_blank" rel="noopener">▶ Přehrát video: ${esc(p.link)}</a>`}
+ if(p.type==='event'&&p.ev){const d=new Date(p.ev.date+'T00:00');
+  h+=`<div class="ev"><div class="cal"><b>${MONTH[d.getMonth()]||''}</b><span>${d.getDate()||'?'}</span></div><div><b>${esc(d.toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'}))}${p.ev.time?' · '+esc(p.ev.time):''}</b><div class="m">${esc(p.ev.place||'Místo upřesníme')}</div></div></div>`}
+ if(p.type==='file'&&p.file)h+=`<div class="file">${ICON_FILE}<div><a href="#" data-dl="${esc(p.file.media||'')}" data-name="${esc(p.file.name)}">${esc(p.file.name)}</a><div class="note">${esc(p.file.size)}</div></div></div>`;
+ return h;
+}
+/* fotky z databáze se doplní až po vykreslení */
+function fillMedia(root){root.querySelectorAll('img[data-mid]:not([src])').forEach(im=>{DB.getMedia(im.dataset.mid).then(u=>{im.src=u}).catch(()=>{im.alt='Fotku se nepodařilo načíst';im.classList.add('broken')})})}
+document.addEventListener('click',async e=>{const a=e.target.closest('[data-dl]');if(!a)return;e.preventDefault();
+ try{const u=await DB.getMedia(a.dataset.dl),l=document.createElement('a');l.href=u;l.download=a.dataset.name;document.body.appendChild(l);l.click();l.remove()}catch(err){fail(err)}});
+
+/* ---------- členové a profil ---------- */
+let selMem=null,editId=null,flash='';
+$('whoName').addEventListener('click',()=>{editId=null;if(location.hash==='#profil')route()});
+const roky=n=>{n=+n;return n===1?'chodí 1 rok':n>=2&&n<=4?`chodí ${n} roky`:`chodí ${n} let`};
+function memDetail(k){const u=MEMS[k],r=[['Telefon',u.tel&&`<a href="tel:${esc(u.tel.replace(/\s/g,''))}">${esc(u.tel)}</a>`],['E-mail',u.mail&&`<a href="mailto:${esc(u.mail)}">${esc(u.mail)}</a>`],
+  ['Bydliště',u.bydliste&&esc(u.bydliste)],['Rok narození',u.narozen&&esc(u.narozen)],['Za čerty',u.roky&&esc(roky(u.roky))],['Příspěvky',esc(pl(POSTS.filter(p=>p.author===k).length))]].filter(x=>x[1]);
+ return `<button type="button" class="linkbtn" data-back>← Zpět na členy</button><div class="box"><div class="prof"><div class="pfoto">${avatar(k)}</div><div><h2>${esc(u.name)}</h2><div class="note">${u.role===3?'správce':'člen'} · přihlašovací jméno: ${esc(k)}</div></div></div>
+  <dl class="pdl">${r.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
+  ${me&&(me.id===k||role()===3)?`<div class="row" style="justify-content:flex-start;margin-top:16px"><button class="btn" type="button" data-edit="${esc(k)}">Upravit profil</button></div>`:''}</div>`}
+function renderProfil(){
+ const k=editId||me.id,u=MEMS[k]||me,adm=role()===3,own=k===me.id;$('vtitle').textContent=own?'Můj profil':'Upravit: '+u.name;
+ const v=x=>esc(x??'');
+ $('profil').innerHTML=`<form class="box pf2" id="pForm">
+  <div class="prof"><div class="pfoto" id="pFoto">${avatar(k)}</div><div style="display:grid;gap:8px">
+   <label class="btn" style="display:inline-flex;align-items:center;cursor:pointer;color:var(--ink)">Změnit fotku<input type="file" id="pFile" accept="image/*" class="hide"></label>
+   <button type="button" class="linkbtn" id="pDelFoto" style="justify-self:start;font-size:14px">Odebrat fotku</button></div></div>
+  <label>Jméno a příjmení<input id="pName" value="${v(u.name)}" required></label>
+  <div class="g2"><label>Telefon<input id="pTel" type="tel" value="${v(u.tel)}" autocomplete="tel"></label><label>E-mail<input id="pMail" type="email" value="${v(u.mail)}" autocomplete="email"></label></div>
+  <label>Bydliště<input id="pByd" value="${v(u.bydliste)}" placeholder="obec, případně ulice"></label>
+  <div class="g2"><label>Rok narození<input id="pNar" type="number" min="1900" max="2100" value="${v(u.narozen)}"></label><label>Odchozené roky (kolik let chodí za čerty)<input id="pRoky" type="number" min="0" max="99" value="${v(u.roky)}"></label></div>
+  ${own?`<fieldset><legend>Změna hesla (nechte prázdné, pokud neměníte)</legend>
+   <label>Současné heslo<input id="pPw0" type="password" autocomplete="current-password"></label>
+   <div class="g2"><label>Nové heslo<input id="pPw1" type="password" autocomplete="new-password"></label><label>Nové heslo znovu<input id="pPw2" type="password" autocomplete="new-password"></label></div></fieldset>`
+  :adm?`<fieldset><legend>Nové heslo pro člena (když ho zapomněl)</legend>
+   <div class="g2"><label>Nové heslo<input id="pPw1" type="password" autocomplete="new-password"></label><label>Nové heslo znovu<input id="pPw2" type="password" autocomplete="new-password"></label></div></fieldset>`:''}
+  ${adm&&!own?`<label style="max-width:260px">Role<select id="pRole"><option value="2"${u.role===2?' selected':''}>Člen</option><option value="3"${u.role===3?' selected':''}>Správce</option></select></label>`:''}
+  <div class="note" id="pErr" role="alert"></div>
+  <div class="row">${adm&&!own?`<button class="btn" type="button" id="pRemove">Odebrat člena</button>`:'<span></span>'}<span style="display:flex;gap:8px"><button class="btn" type="button" id="pCancel">Zrušit</button><button class="btn p" type="submit">Uložit</button></span></div>
+ </form>`;
+ let foto=u.foto||null,delAsk=false;
+ const prev=()=>$('pFoto').innerHTML=foto?`<img src="${esc(foto)}" alt="">`:esc((u.name||'?')[0]);
+ $('pFile').onchange=async()=>{const f=$('pFile').files[0];if(!f)return;foto=await square(await readFile(f));prev()};
+ $('pDelFoto').onclick=()=>{foto=null;prev()};
+ $('pCancel').onclick=()=>{location.hash=own?'nastenka':'clenove'};
+ if($('pRemove'))$('pRemove').onclick=async e=>{if(!delAsk){delAsk=true;e.target.textContent='Opravdu odebrat?';return}
+  try{await DB.removeMember(u);delete MEMS[k];location.hash='clenove'}catch(err){fail(err,'pErr')}};
+ $('pForm').onsubmit=async e=>{e.preventDefault();
+  const p1=$('pPw1')?.value||'',p2=$('pPw2')?.value||'',mail=$('pMail').value.trim();
+  if(p1||p2){if(p1!==p2){$('pErr').textContent='Hesla se neshodují.';return}if(p1.length<6){$('pErr').textContent='Heslo musí mít aspoň 6 znaků.';return}}
+  if(mail&&!$('pMail').checkValidity()){$('pErr').textContent='Zkontrolujte e-mail.';return}
+  const data={name:$('pName').value.trim()||u.name,tel:$('pTel').value.trim(),mail,bydliste:$('pByd').value.trim(),narozen:$('pNar').value,roky:$('pRoky').value,foto};
+  if($('pRole'))data.role=+$('pRole').value;
+  $('pErr').textContent='Ukládám…';
+  try{let uid=u.uid;
+   if(p1&&own)await DB.changeMyPassword($('pPw0').value,p1);
+   if(p1&&!own)uid=await DB.resetPassword(u,p1);
+   await DB.saveMember(uid,data);Object.assign(u,data,{uid});MEMS[k]=u;
+   if(own){me={...me,...data};$('whoName').innerHTML=`<span class="av" style="width:30px;height:30px;font-size:14px">${avatar(k)}</span>${esc(me.name)}`}
+   $('pErr').textContent='Uloženo.';if(!own){flash=p1?'Uloženo. Člen se teď přihlásí novým heslem.':'Uloženo.';selMem=k;editId=null;location.hash='clenove'}}
+  catch(err){fail(err,'pErr')}};
+}
+function square(url){return new Promise(ok=>{const i=new Image();i.onload=()=>{const n=Math.min(i.width,i.height),c=document.createElement('canvas');c.width=c.height=300;
+ c.getContext('2d').drawImage(i,(i.width-n)/2,(i.height-n)/2,n,n,0,0,300,300);ok(c.toDataURL('image/jpeg',.8))};i.onerror=()=>ok(null);i.src=url})}
+$('members').addEventListener('click',e=>{
+ const m=e.target.closest('[data-mem]');if(m){selMem=m.dataset.mem;render();scrollTo(0,0);return}
+ if(e.target.closest('[data-back]')){selMem=null;render();return}
+ const eb=e.target.closest('[data-edit]');if(eb){editId=eb.dataset.edit===me.id?null:eb.dataset.edit;location.hash='profil';return}
+ if(e.target.id==='mAdd'){$('mAddF').classList.remove('hide');e.target.classList.add('hide');$('naU').focus()}
+ if(e.target.id==='naC'){$('mAddF').classList.add('hide');$('mAdd').classList.remove('hide')}
+});
+$('members').addEventListener('submit',async e=>{if(e.target.id!=='mAddF'||role()<3)return;e.preventDefault();
+ const id=$('naU').value.trim().toLowerCase(),name=$('naN').value.trim(),pw=$('naP').value,r=+$('naR').value;
+ if(!DB.okName(id)){$('naE').textContent='Přihlašovací jméno: 3–30 znaků, jen malá písmena bez diakritiky, čísla, tečka, pomlčka.';return}
+ if(MEMS[id]){$('naE').textContent='Toto přihlašovací jméno už existuje.';return}
+ if(pw.length<6){$('naE').textContent='Heslo musí mít aspoň 6 znaků.';return}
+ $('naE').textContent='Zakládám…';
+ try{const uid=await DB.addMember(id,name,pw,r);MEMS[id]={uid,jmeno:id,name,role:r,n:1};render()}catch(err){fail(err,'naE')}});
+
+/* ---------- kronika ---------- */
+/* Vyčištění HTML (např. z Wordu): ponechá jen text, základní formátování a obrázky. */
+const OK={P:1,BR:1,B:1,STRONG:1,I:1,EM:1,U:1,H2:1,H3:1,UL:1,OL:1,LI:1,BLOCKQUOTE:1,IMG:1,A:1,TABLE:1,TBODY:1,THEAD:1,TR:1,TD:1,TH:1};
+const RENAME={H1:'H2',H4:'H3',H5:'H3',H6:'H3',DIV:'P'};
+const DROP=/^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|XML|IFRAME|OBJECT|EMBED|svg|SVG|BUTTON|INPUT|SELECT|TEXTAREA|FORM)$/;
+function clean(html){
+ const doc=new DOMParser().parseFromString('<body>'+html,'text/html');
+ (function walk(n){for(const c of [...n.childNodes]){
+  if(c.nodeType===8){c.remove();continue}
+  if(c.nodeType!==1)continue;
+  let tag=c.tagName.toUpperCase();
+  if(DROP.test(tag)||tag.includes(':')&&tag!=='O:P'){c.remove();continue}
+  if(RENAME[tag]){const r=doc.createElement(RENAME[tag]);r.append(...c.childNodes);c.replaceWith(r);walk(r);continue}
+  if(!OK[tag]){walk(c);c.replaceWith(...c.childNodes);continue}
+  for(const a of [...c.attributes]){const v=a.value.trim();
+   const keep=(tag==='IMG'&&a.name==='src'&&/^(data:image\/|media\/|https:\/\/)/i.test(v))||(tag==='IMG'&&a.name==='alt')||(tag==='IMG'&&a.name==='data-mid'&&/^[\w-]+:\d+$/.test(v))||(tag==='IMG'&&a.name==='data-w'&&/^(25|33|50|66|75)$/.test(v))||(tag==='IMG'&&a.name==='data-al'&&/^(l|r)$/.test(v))||
+    (tag==='A'&&a.name==='href'&&/^(https?:|mailto:)/i.test(v))||((tag==='TD'||tag==='TH')&&/^(colspan|rowspan)$/.test(a.name));
+   if(!keep)c.removeAttribute(a.name)}
+  if(tag==='IMG'&&!c.getAttribute('src')&&!c.getAttribute('data-mid')){c.remove();continue}
+  if(tag==='A')c.setAttribute('rel','noopener'),c.setAttribute('target','_blank');
+  walk(c);
+ }})(doc.body);
+ doc.body.querySelectorAll('p').forEach(p=>{if(!p.textContent.trim()&&!p.querySelector('img,br'))p.remove()});
+ return doc.body.innerHTML;
+}
+/* Obrázky z Wordu: v HTML schránky jsou jen jako odkazy na disk, skutečná data jsou v RTF. */
+function rtfImages(rtf){
+ rtf=rtf.replace(/\{\\\*?\\nonshppict/g,'\u0000');
+ let out='',i=0;while(i<rtf.length){const z=rtf.indexOf('\u0000',i);if(z<0){out+=rtf.slice(i);break}
+  out+=rtf.slice(i,z);let d=1,j=z+1;for(;j<rtf.length&&d;j++){const c=rtf[j];if(c==='\\'){j++;continue}if(c==='{')d++;else if(c==='}')d--}i=j}
+ rtf=out;const res=[],re=/\\pict(?![a-z])/g;let m;
+ while((m=re.exec(rtf))){
+  const st0=rtf.lastIndexOf('{',m.index);let d=0,j=st0;
+  for(;j<rtf.length;j++){const c=rtf[j];if(c==='\\'){j++;continue}if(c==='{')d++;else if(c==='}'){d--;if(!d)break}}
+  const g=rtf.slice(st0+1,j);re.lastIndex=j;
+  const type=/\\pngblip/.test(g)?'image/png':/\\jpegblip/.test(g)?'image/jpeg':null;
+  const hex=g.replace(/\{[^{}]*\}/g,'').replace(/\\[a-zA-Z]+-?\d* ?/g,'').replace(/[^0-9a-fA-F]/g,'');
+  if(!type||hex.length<200){res.push(null);continue}
+  let bin='';for(let k=0;k+1<hex.length;k+=2)bin+=String.fromCharCode(parseInt(hex.substr(k,2),16));
+  res.push(`data:${type};base64,`+btoa(bin));
+ }
+ return res;
+}
+/* Zmenšení obrázků, ať se vejdou do úložiště (max. 1400 px). */
+const pending=new Set();
+function shrink(img){
+ if(img.dataset.ok||!/^data:image\//.test(img.src))return;img.dataset.ok=1;
+ const p=new Promise(done=>{const im=new Image();im.onload=()=>{const sc=Math.min(1,1400/Math.max(im.width,im.height));
+  if(sc===1&&img.src.length<400e3){done();return}
+  const c=document.createElement('canvas');c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+  img.src=c.toDataURL('image/jpeg',.85);done()};im.onerror=()=>{img.remove();done()};im.src=img.src});
+ pending.add(p);p.then(()=>pending.delete(p));
+}
+const ed=$('kEd');
+function insertHtml(h){ed.focus();document.execCommand('insertHTML',false,h);ed.querySelectorAll('img').forEach(shrink)}
+ed.addEventListener('paste',e=>{
+ const cd=e.clipboardData;if(!cd)return;e.preventDefault();
+ const html=cd.getData('text/html'),rtf=cd.getData('text/rtf');
+ if(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const word=rtf?rtfImages(rtf):[];let n=0,lost=0;
+  doc.querySelectorAll('img').forEach(im=>{const s0=im.getAttribute('src')||'';
+   if(/^(data:image\/|https:\/\/)/i.test(s0))return;
+   const w=word[n++];if(w)im.setAttribute('src',w);else{im.remove();lost++}});
+  insertHtml(clean(doc.body.innerHTML));
+  $('krErr').textContent=lost?`${lost} obrázek/obrázků se nepodařilo vložit – vložte je zvlášť tlačítkem „Vložit obrázek“.`:'';
+  return}
+ const files=[...cd.files].filter(f=>f.type.startsWith('image/'));
+ if(files.length){files.forEach(f=>readFile(f).then(u=>insertHtml(`<img src="${u}">`)));return}
+ const t=cd.getData('text/plain');if(t)insertHtml(t.split(/\r?\n\r?\n+/).map(p=>'<p>'+esc(p).replace(/\r?\n/g,'<br>')+'</p>').join(''));
+});
+ed.addEventListener('drop',e=>{const f=[...(e.dataTransfer?.files||[])].filter(x=>x.type.startsWith('image/'));if(!f.length)return;
+ e.preventDefault();f.forEach(x=>readFile(x).then(u=>insertHtml(`<img src="${u}">`)))});
+/* ---------- úprava obrázku v editoru ---------- */
+const itb=$('imgTb'),SIZES=[25,33,50,66,75,100];let selImg=null;
+function placeTb(){if(!selImg)return;const w=$('kWrap').getBoundingClientRect(),r=selImg.getBoundingClientRect();
+ let top=r.top-w.top-itb.offsetHeight-6;if(top<4)top=Math.min(r.top-w.top+6,w.height-itb.offsetHeight-4);
+ itb.style.top=Math.max(4,top)+'px';itb.style.left=Math.max(6,Math.min(r.left-w.left+r.width/2-itb.offsetWidth/2,w.width-itb.offsetWidth-6))+'px'}
+function selectImg(im){ed.querySelectorAll('img.sel').forEach(x=>x.classList.remove('sel'));selImg=im||null;
+ itb.classList.toggle('hide',!selImg);if(!selImg)return;im.classList.add('sel');
+ $('imgSz').textContent=(+im.dataset.w||100)+' %';
+ itb.querySelectorAll('[data-a=l],[data-a=c],[data-a=r]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a===(im.dataset.al||'c')));
+ placeTb()}
+ed.addEventListener('click',e=>selectImg(e.target.closest('img')));
+ed.addEventListener('scroll',placeTb);addEventListener('resize',placeTb);
+ed.addEventListener('keydown',e=>{if(selImg&&(e.key==='Delete'||e.key==='Backspace')){e.preventDefault();selImg.remove();selectImg(null)}else if(selImg)selectImg(null)});
+document.addEventListener('mousedown',e=>{if(selImg&&!$('kWrap').contains(e.target))selectImg(null)});
+itb.addEventListener('mousedown',e=>e.preventDefault());
+function rotate(im,deg){
+ const i=new Image();i.onload=()=>{try{const c=document.createElement('canvas');c.width=i.naturalHeight;c.height=i.naturalWidth;
+  const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(i,-i.naturalWidth/2,-i.naturalHeight/2);
+  im.src=c.toDataURL('image/jpeg',.9);delete im.dataset.mid;im.onload=()=>{placeTb();im.onload=null}}
+  catch(err){$('krErr').textContent='Tento obrázek nejde otočit (není vložený do zápisu, jen odkazovaný ze složky).'}};i.src=im.src}
+itb.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b||!selImg)return;const a=b.dataset.a,im=selImg;
+ const cur=SIZES.indexOf(+im.dataset.w||100);
+ if(a==='minus'||a==='plus'){const n=SIZES[Math.max(0,Math.min(SIZES.length-1,(cur<0?5:cur)+(a==='plus'?1:-1)))];n===100?delete im.dataset.w:im.dataset.w=n}
+ if(a==='rl')rotate(im,-90);if(a==='rr')rotate(im,90);
+ if(a==='l'||a==='r'){im.dataset.al=a;if(!im.dataset.w)im.dataset.w=50}
+ if(a==='c')delete im.dataset.al;
+ if(a==='del'){im.remove();selectImg(null);return}
+ selectImg(im)});
+let savedRange=null;
+ed.addEventListener('blur',()=>{const s=getSelection();if(s.rangeCount&&ed.contains(s.anchorNode))savedRange=s.getRangeAt(0)});
+$('kTb').addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault()});
+$('kTb').addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(!b)return;const c=b.dataset.cmd;ed.focus();
+ if(c==='img'){$('kImg').click();return}
+ if(c==='h'){document.execCommand('formatBlock',false,document.queryCommandValue('formatBlock').toLowerCase()==='h3'?'p':'h3');return}
+ document.execCommand(c,false,null)});
+$('kImg').onchange=()=>{const fs=[...$('kImg').files];$('kImg').value='';
+ if(savedRange){const s=getSelection();s.removeAllRanges();s.addRange(savedRange)}
+ fs.forEach(f=>readFile(f).then(u=>insertHtml(`<img src="${u}">`)))};
+
+let krEdit=null;
+const krHtml=k=>clean(k.html||'');
+function renderKr(q){
+ const list=KR.filter(k=>k.level<=role()&&(!q||[k.nadpis,(k.html||'').replace(/<[^>]+>/g,' '),k.rok].join(' ').toLowerCase().includes(q)))
+  .sort((a,b)=>b.rok-a.rok||String(b.datum).localeCompare(String(a.datum)));
+ const years=[...new Set(list.map(k=>k.rok))];
+ $('krYears').innerHTML=years.length>1?years.map(y=>`<a href="#kronika" data-y="${y}">${y}</a>`).join(''):'';
+ const adm=role()===3;
+ $('krList').innerHTML=years.map(y=>{const ks=list.filter(k=>k.rok===y);
+  return `<section class="kr-year" id="rok-${y}"><h2>${y}<small>${ks.length===1?'1 zápis':ks.length+' zápisy'}</small></h2>${ks.map(k=>`
+  <article class="kr${k.bw?' bw':''}"><div class="d">${k.datum?esc(new Date(k.datum+'T00:00').toLocaleDateString('cs-CZ',{day:'numeric',month:'long',year:'numeric'})):''}${adm&&k.level>1?`<span class="chip l${k.level}">${LVL[k.level]}</span>`:''}</div>
+   <h3>${esc(k.nadpis)}</h3><div class="tx">${krHtml(k)}</div>
+   ${adm?`<div class="act"><button type="button" data-ke="${esc(k.id)}">Upravit</button><button type="button" data-kd="${esc(k.id)}">Smazat</button></div>`:''}
+  </article>`).join('')}</section>`}).join('')||`<div class="empty">${q?'V kronice nic neodpovídá hledání.':'Kronika je zatím prázdná.'}</div>`;
+ fillMedia($('krList'));
+}
+const mids=html=>[...new DOMParser().parseFromString('<body>'+(html||''),'text/html').querySelectorAll('img[data-mid]')].map(i=>i.dataset.mid);
+function krOpen(k){
+ krEdit=k?k.id:null;$('krFormT').textContent=k?'Upravit zápis':'Nový zápis';
+ $('kLvl').innerHTML=[1,2,3].map(l=>`<option value="${l}">${LVL[l]}</option>`).join('');
+ $('kRok').value=k?k.rok:new Date().getFullYear();$('kDatum').value=k?.datum||'';$('kNadpis').value=k?.nadpis||'';
+ $('kEd').innerHTML=k?krHtml(k):'';fillMedia($('kEd'));$('kBw').checked=!!k?.bw;ed.classList.toggle('bw',!!k?.bw);$('kLvl').value=k?k.level:1;$('krErr').textContent='';
+ $('krForm').classList.remove('hide');$('krNew').classList.add('hide');$('kNadpis').focus();
+}
+function krClose(){selectImg(null);$('krForm').classList.add('hide');$('krNew').classList.toggle('hide',role()<3);krEdit=null}
+$('krNew').onclick=()=>krOpen(null);
+$('kBw').onchange=()=>ed.classList.toggle('bw',$('kBw').checked);
+$('krCancel').onclick=krClose;
+let krSaving=false;
+$('krForm').addEventListener('submit',async e=>{e.preventDefault();if(role()<3||krSaving)return;
+ await Promise.all([...pending]);
+ const d={rok:+$('kRok').value,datum:$('kDatum').value,nadpis:$('kNadpis').value.trim(),bw:$('kBw').checked,level:+$('kLvl').value};
+ if(!d.rok||!d.nadpis){$('krErr').textContent='Vyplňte ročník a nadpis.';return}
+ krSaving=true;$('krErr').textContent='Ukládám…';
+ try{
+  /* nové obrázky se uloží do databáze, v textu zůstane jen odkaz */
+  const box=document.createElement('div');box.innerHTML=clean($('kEd').innerHTML);
+  for(const im of box.querySelectorAll('img')){
+   if(im.dataset.mid&&!/^data:/.test(im.getAttribute('src')||'')){im.removeAttribute('src');continue}
+   const s=im.getAttribute('src')||'';
+   if(/^data:image\//.test(s)){im.dataset.mid=await DB.putMedia(s,d.level);im.removeAttribute('src')}else if(im.dataset.mid)im.removeAttribute('src')}
+  d.html=box.innerHTML.trim();
+  const old=krEdit?KR.find(x=>x.id===krEdit):null,nowM=mids(d.html),oldM=old?mids(old.html):[];
+  await DB.delMedia(oldM.filter(m=>!nowM.includes(m)));
+  if(old&&old.level!==d.level)await DB.setMediaLevel(nowM.filter(m=>oldM.includes(m)),d.level);
+  const id=await DB.saveKr(krEdit,d);
+  if(old)Object.assign(old,d);else KR.push({id,...d});
+  krSaving=false;$('krErr').textContent='';krClose();render()}
+ catch(err){krSaving=false;fail(err,'krErr')}
+});
+let krDel=null;
+$('kronika').addEventListener('click',async e=>{
+ const y=e.target.closest('[data-y]');if(y){e.preventDefault();document.getElementById('rok-'+y.dataset.y)?.scrollIntoView({behavior:'smooth'});return}
+ const b=e.target.closest('button');if(!b||role()<3)return;
+ if(b.dataset.ke){krOpen(KR.find(x=>x.id===b.dataset.ke));scrollTo({top:0,behavior:'smooth'})}
+ if(b.dataset.kd){const id=b.dataset.kd;if(krDel!==id){krDel=id;b.textContent='Opravdu smazat?';return}
+  try{const k=KR.find(x=>x.id===id);await DB.delKr(id);await DB.delMedia(mids(k.html));KR=KR.filter(x=>x.id!==id);krDel=null;render()}catch(err){fail(err)}}
+});
+function render(){
+ const q=$('q').value.trim().toLowerCase();
+ if(view==='kronika'){renderKr(q);return}
+ if(view==='profil'){renderProfil();return}
+ if(view==='clenove'){
+  if(!me){$('members').innerHTML='';return}
+  if(selMem&&MEMS[selMem]){$('members').innerHTML=(flash?`<div class="lock">${esc(flash)}</div>`:'')+memDetail(selMem);flash='';return}
+  $('members').innerHTML=(role()===3?`<div class="row" style="justify-content:flex-start"><button class="btn p" type="button" id="mAdd">Přidat člena</button></div><form class="box pf2 hide" id="mAddF">
+    <h3>Nový člen</h3><div class="g2"><label>Přihlašovací jméno<input id="naU" required autocomplete="off"></label><label>Jméno a příjmení<input id="naN" required></label></div>
+    <div class="g2"><label>Počáteční heslo (aspoň 6 znaků)<input id="naP" required autocomplete="new-password"></label><label>Role<select id="naR"><option value="2">Člen</option><option value="3">Správce</option></select></label></div>
+    <div class="note" id="naE" role="alert"></div><div class="row"><button class="btn" type="button" id="naC">Zrušit</button><button class="btn p" type="submit">Přidat</button></div></form>`:'')+
+   (Object.entries(MEMS).filter(([k,u])=>!q||u.name.toLowerCase().includes(q)).sort((a,b)=>a[1].name.localeCompare(b[1].name,'cs')).map(([k,u])=>`<button type="button" class="mem" data-mem="${esc(k)}"><div class="av">${avatar(k)}</div><div><div class="n"><b>${esc(u.name)}</b></div><div class="t">${u.role===3?'správce':'člen'}${u.roky?' · '+esc(roky(u.roky)):''}${u.bydliste?' · '+esc(u.bydliste):''}</div></div></button>`).join('')||'<div class="empty">Nikdo neodpovídá hledání.</div>');
+  return}
+ let list=POSTS.filter(p=>p.level<=role()&&(ftype==='all'||p.type===ftype)&&(!q||(p.text+' '+(p.ev?.place||'')+' '+(p.file?.name||'')).toLowerCase().includes(q)));
+ if(view==='udalosti'){const t=new Date().toISOString().slice(0,10);list=[...list].sort((a,b)=>{const A=a.ev?.date||'',B=b.ev?.date||'';const fa=A>=t,fb=B>=t;return fa!==fb?(fa?-1:1):fa?A.localeCompare(B):B.localeCompare(A)})}
+ $('posts').innerHTML=list.length?list.map(p=>{
+  const mine=me&&(me.id===p.author||me.role===3),liked=me&&p.likes.includes(me.id);
+  const lvlSel=mine?`<select data-lvl="${esc(p.id)}" aria-label="Úroveň viditelnosti">${[1,2,3].filter(l=>l<=role()).map(l=>`<option value="${l}"${l===p.level?' selected':''}>${LVL[l]}</option>`).join('')}</select>`:'';
+  return `<article class="post"><div class="ph"><div class="av">${avatar(p.author,p.authorName)}</div>
+   <div><div class="n">${esc(uname(p.author,p.authorName))}</div><div class="t">${ago(p.ts)} · ${TYPES[p.type]}</div></div><span class="sp"></span>${lvlSel}</div>
+   ${body(p)}
+   <div class="pf">${me?`<button data-like="${esc(p.id)}" class="${liked?'on':''}">${liked?'♥':'♡'} ${p.likes.length||''} To se mi líbí</button>`:p.likes.length?`<span class="note" style="align-self:center;padding:0 10px">♡ ${p.likes.length}</span>`:''}
+    <button data-cm="${esc(p.id)}">Komentáře ${p.comments.length||''}</button>${mine?`<button data-del="${esc(p.id)}">Smazat</button>`:''}</div>
+   ${open.has(p.id)?`<div class="cm">${p.comments.map(c=>`<p><b>${esc(uname(c.u,c.n))}:</b> ${esc(c.t)}</p>`).join('')||'<span class="note">Zatím bez komentářů.</span>'}
+    ${me?`<form data-cf="${esc(p.id)}"><input placeholder="Napsat komentář" aria-label="Komentář"><button class="btn" type="submit">Odeslat</button></form>`:''}</div>`:''}
+  </article>`}).join(''):`<div class="empty">${q?'Nic neodpovídá hledání.':'Zatím tu nic není.'}</div>`;
+ fillMedia($('posts'));
+}
+const pMedia=p=>[p.media,p.file?.media].filter(Boolean);
+let delAsk=null;
+$('posts').addEventListener('click',async e=>{
+ const t=e.target.closest('button');if(!t)return;
+ const id=t.dataset.like||t.dataset.cm||t.dataset.del;const p=POSTS.find(x=>x.id===id);if(!p)return;
+ try{
+  if(t.dataset.like&&me){const on=!p.likes.includes(me.id);await DB.like(id,me.id,on);on?p.likes.push(me.id):p.likes.splice(p.likes.indexOf(me.id),1);render()}
+  if(t.dataset.cm){open.has(id)?open.delete(id):open.add(id);render()}
+  if(t.dataset.del){if(delAsk!==id){delAsk=id;t.textContent='Opravdu smazat?';t.classList.add('on');return}
+   await DB.delPost(id);await DB.delMedia(pMedia(p)).catch(()=>{});POSTS=POSTS.filter(x=>x.id!==id);delAsk=null;render()}}
+ catch(err){fail(err)}
+});
+$('posts').addEventListener('change',async e=>{const s=e.target.closest('[data-lvl]');if(!s)return;
+ const p=POSTS.find(x=>x.id===s.dataset.lvl);if(!p)return;const level=Math.min(+s.value,role());
+ try{
+  /* při zpřístupnění širšímu okruhu nejdřív fotky, při zúžení nejdřív příspěvek */
+  if(level<p.level){await DB.setMediaLevel(pMedia(p),level);await DB.updatePost(p.id,{level})}else{await DB.updatePost(p.id,{level});await DB.setMediaLevel(pMedia(p),level)}
+  p.level=level;render()}catch(err){fail(err);render()}});
+$('posts').addEventListener('submit',async e=>{const f=e.target.closest('[data-cf]');if(!f)return;e.preventDefault();
+ const v=f.querySelector('input').value.trim();if(!v||!me)return;const c={u:me.id,n:me.name,t:v,ts:Date.now()};
+ try{await DB.comment(f.dataset.cf,c);POSTS.find(x=>x.id===f.dataset.cf).comments.push(c);render()}catch(err){fail(err)}});
+
+}
+</script>
+</body>
+</html>

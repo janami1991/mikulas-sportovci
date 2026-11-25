@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Mikulášská obchůzka – Lidečko</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0b1424;color:#fff;font:15px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif;overflow:hidden;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hide{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* HUD */
+#hud{position:fixed;left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;max-width:60vw}
+.pill{background:rgba(0,0,0,.55);border-radius:8px;padding:6px 10px;font-size:14px;white-space:nowrap}
+.pill b{font-size:16px}
+#map{position:fixed;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));width:150px;height:150px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:#0b1424;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#staminaW{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));width:min(320px,50vw);height:10px;background:rgba(0,0,0,.55);border-radius:6px;overflow:hidden;pointer-events:none}
+#stamina{height:100%;width:100%;background:linear-gradient(90deg,#f4a261,#ffd166);transition:width .1s}
+#stamina.low{background:#e63946}
+#staminaL{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(16px,env(safe-area-inset-bottom)) + 14px);font-size:12px;color:#ddd;pointer-events:none}
+#toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:10px 16px;border-radius:10px;font-size:17px;text-align:center;pointer-events:none;opacity:0;transition:opacity .3s;max-width:86vw}
+#toast.on{opacity:1}
+#warn{position:fixed;left:50%;top:max(60px,calc(env(safe-area-inset-top) + 50px));transform:translateX(-50%);background:#b3122e;padding:6px 12px;border-radius:8px;font-size:14px;pointer-events:none}
+#prompt{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 40px);transform:translateX(-50%);background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.4);padding:10px 16px;border-radius:10px;font-size:16px;text-align:center;min-width:220px}
+#prompt .bar{height:5px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:8px;overflow:hidden}
+#prompt .bar i{display:block;height:100%;width:0;background:#ffd166}
+#splat{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.85) 0,rgba(255,255,255,.55) 18%,rgba(255,255,255,0) 45%);opacity:0;transition:opacity .6s}
+.bub{position:fixed;transform:translate(-50%,-100%);background:#fff;color:#111;padding:4px 9px;border-radius:10px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none}
+.bub::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+#topBtns{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 160px);display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.sbtn{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.35);border-radius:8px;min-height:36px;padding:0 12px;font-size:13px}
+
+/* dotykové ovládání */
+#touch{position:fixed;inset:0;pointer-events:none}
+#joy{position:fixed;width:130px;height:130px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);pointer-events:none;transform:translate(-50%,-50%)}
+#joy i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.45)}
+.tbtn{position:fixed;pointer-events:auto;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(0,0,0,.45);font-weight:700;display:grid;place-items:center;text-align:center;line-height:1.1}
+#tHit{width:84px;height:84px;right:calc(max(18px,env(safe-area-inset-right)) + 0px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 0px);font-size:15px;background:rgba(179,18,46,.7)}
+#tRun{width:64px;height:64px;right:calc(max(18px,env(safe-area-inset-right)) + 96px);bottom:max(26px,env(safe-area-inset-bottom));font-size:13px}
+#tScare{width:70px;height:70px;right:calc(max(18px,env(safe-area-inset-right)) + 10px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 96px);font-size:13px;background:rgba(255,209,102,.75);color:#111}
+.tbtn.on{background:rgba(255,255,255,.4)}
+
+/* menu */
+.screen{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#1c2a48 0,#0b1424 70%);overflow:auto;padding:20px;touch-action:pan-y}
+.card{width:min(560px,100%);display:grid;gap:16px}
+.card h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1.05;margin:0}
+.card p{margin:0;color:#c9d2e3}
+.lbl{font-size:13px;color:#9aa6bd;margin-bottom:6px}
+.opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.opt{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-radius:10px;padding:10px 8px;text-align:center;min-height:56px;font-size:14px}
+.opt small{display:block;color:#9aa6bd;font-size:11px;margin-top:2px}
+.opt[aria-pressed=true]{background:#fff;color:#111;border-color:#fff}
+.opt[disabled]{opacity:.4;cursor:not-allowed}
+.big{min-height:52px;border-radius:10px;border:0;background:#ffd166;color:#111;font-weight:700;font-size:18px}
+.keys{font-size:13px;color:#9aa6bd;line-height:1.6}
+.keys b{color:#fff;font-weight:600}
+.res{display:grid;grid-template-columns:1fr auto;gap:6px 16px;font-size:17px}
+.res b{text-align:right}
+.res .tot{border-top:1px solid rgba(255,255,255,.3);padding-top:8px;font-size:20px}
+a{color:#ffd166}
+#zdroj{position:fixed;left:max(6px,env(safe-area-inset-left));bottom:2px;font-size:10px;color:rgba(255,255,255,.45);pointer-events:none}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#0b1424;font-size:16px}
+@media(max-height:500px){#map{width:110px;height:110px}#topBtns{top:max(10px,env(safe-area-inset-top));right:calc(max(10px,env(safe-area-inset-right)) + 120px);flex-direction:row}}
+@media(max-width:600px){.opts{grid-template-columns:repeat(2,minmax(0,1fr))}#map{width:110px;height:110px}#topBtns{top:calc(max(10px,env(safe-area-inset-top)) + 120px)}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui" class="hide">
+ <div id="hud">
+  <div class="pill">Body <b id="hScore">0</b></div>
+  <div class="pill">Domy s družinou <b id="hHouses">0</b>/<span id="hHousesT"></span></div>
+  <div class="pill">Chyceno <b id="hCaught">0</b></div>
+  <div class="pill" id="hTime">20:00</div>
+ </div>
+ <canvas id="map" width="300" height="300" aria-label="Minimapa"></canvas>
+ <div id="topBtns"><button class="sbtn" id="bEnd" type="button">Ukončit obchůzku</button><button class="sbtn" id="bPause" type="button">Pauza</button></div>
+ <div id="staminaL">Výdrž</div>
+ <div id="staminaW"><div id="stamina"></div></div>
+ <div id="warn" class="hide">Jsi mimo Polňák – domy tady nepočítáme</div>
+ <div id="prompt" class="hide"><span id="promptT"></span><div class="bar"><i id="promptBar"></i></div></div>
+ <div id="splat"></div>
+ <div id="toast"></div>
+ <div id="bubbles"></div>
+ <div id="touch" class="hide">
+  <div id="joy" class="hide"><i></i></div>
+  <button class="tbtn" id="tHit" type="button">Udeřit</button>
+  <button class="tbtn" id="tRun" type="button">Běh</button>
+  <button class="tbtn" id="tScare" type="button">Strašit</button>
+ </div>
+</div>
+
+<div class="screen" id="menu">
+ <div class="card">
+  <h1>Mikulášská obchůzka<br>Lidečko</h1>
+  <p>Jdi s družinou od domu k domu. Body za dům dostaneš, jen když jsi u něj s ostatními – u domu straš a mezi domy chytej napalovače. Vzhled postav kromě čerta je zatím provizorní.</p>
+  <div><div class="lbl">Postava</div><div class="opts" id="oChar"></div></div>
+  <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
+  <button class="big" id="bStart" type="button">Vyjít na stranu</button>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>. Hraje se na šířku.</div>
+  <div class="keys" id="best"></div>
+  <div class="keys"><a href="editor.html">Editor mapy (domy, cesty, ploty, objekty)</a> · <a href="../index.html">← Zpět na web</a></div>
+ </div>
+</div>
+
+<div class="screen hide" id="pause">
+ <div class="card" style="text-align:center">
+  <h1>Pauza</h1>
+  <button class="big" id="bResume" type="button">Pokračovat</button>
+ </div>
+</div>
+
+<div class="screen hide" id="end">
+ <div class="card">
+  <h1 id="endT">Obchůzka skončila</h1>
+  <div class="res" id="endRes"></div>
+  <div class="keys" id="endBest"></div>
+  <button class="big" id="bAgain" type="button">Hrát znovu</button>
+  <div class="keys"><a href="../index.html">← Zpět na web</a></div>
+ </div>
+</div>
+
+<div id="loading">Načítám Lidečko…</div>
+<div id="zdroj">Mapa © přispěvatelé OpenStreetMap · Adresy, výšky budov, střechy a stromy © ČÚZK (CC BY 4.0)</div>
+
+<script src="three.min.js"></script>
+<script src="polnak.js"></script>
+<script src="upravy.js"></script>
+<script src="svet.js"></script>
+<script src="hra.js"></script>
+</body>
+</html>

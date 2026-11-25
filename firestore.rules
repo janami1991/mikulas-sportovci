@@ -1,0 +1,57 @@
+rules_version = '2';
+// Pravidla databáze webu Mikuláš Sportovci. Vložte celé do Firebase konzole: Firestore Database → Pravidla (Rules) → Publikovat.
+// Úrovně obsahu: 1 = všichni (i host), 2 = přihlášení členové, 3 = správci.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function memberPath() { return /databases/$(database)/documents/clenove/$(request.auth.uid); }
+    function isMember() { return signed() && exists(memberPath()); }
+    function myName() { return get(memberPath()).data.jmeno; }
+    function isAdmin() { return isMember() && get(memberPath()).data.role == 3; }
+    function canSee(l) { return l == 1 || (isMember() && (l == 2 || isAdmin())); }
+    function okLevel(l) { return l is int && l >= 1 && l <= 3 && canSee(l); }
+    function setupPath() { return /databases/$(database)/documents/nastaveni/zalozeno; }
+    // zakládání webu: první správce (jen dokud web není založený)
+    function founding() { return signed() && !exists(setupPath()) && getAfter(setupPath()).data.uid == request.auth.uid; }
+
+    match /nastaveni/zalozeno {
+      allow get: if true;
+      allow create: if founding() && getAfter(memberPath()).data.role == 3;
+    }
+    // přihlašovací jméno → interní adresa účtu (seznam jmen nejde stáhnout)
+    match /uzivatele/{jmeno} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin() || founding();
+    }
+    match /clenove/{uid} {
+      allow read: if isMember();
+      allow create: if isAdmin() || (founding() && request.auth.uid == uid && request.resource.data.role == 3);
+      // člen si upraví svůj profil, ale ne roli ani přihlašovací jméno
+      allow update: if isAdmin() || (isMember() && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role && request.resource.data.jmeno == resource.data.jmeno);
+      allow delete: if isAdmin();
+    }
+    match /prispevky/{id} {
+      allow read: if canSee(resource.data.level);
+      allow create: if isMember() && request.resource.data.author == myName() && okLevel(request.resource.data.level);
+      allow update: if canSee(resource.data.level) && okLevel(request.resource.data.level)
+                    && request.resource.data.author == resource.data.author && (
+                      isAdmin() || resource.data.author == myName()
+                      || (isMember() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'comments'])));
+      allow delete: if isAdmin() || (isMember() && resource.data.author == myName());
+    }
+    match /media/{id} {
+      allow read: if canSee(resource.data.level);
+      allow create: if isMember() && request.resource.data.owner == myName() && okLevel(request.resource.data.level);
+      allow update: if (isAdmin() || (isMember() && resource.data.owner == myName())) && okLevel(request.resource.data.level)
+                    && request.resource.data.owner == resource.data.owner;
+      allow delete: if isAdmin() || (isMember() && resource.data.owner == myName());
+    }
+    match /kronika/{id} {
+      allow read: if canSee(resource.data.level);
+      allow create, update: if isAdmin() && okLevel(request.resource.data.level);
+      allow delete: if isAdmin();
+    }
+  }
+}

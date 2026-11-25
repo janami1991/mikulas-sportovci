@@ -1,0 +1,8 @@
+Fotky na úvodní stranu
+======================
+1. Fotky (.jpg) nahrajte do této složky "media".
+2. V index.html najděte na začátku skriptu "const FOTKY = [" a připište
+   název souboru, např. 'media/obchuzka2024.jpg',
+3. INTERVAL = po kolika sekundách dopadne další fotka,
+   NA_STOLE = kolik fotek je vidět najednou.
+Fotky se na webu zobrazují černobíle automaticky.
