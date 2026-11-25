@@ -152,7 +152,12 @@ main{max-width:688px;margin:0 auto;padding:24px max(4vw,14px) 60px;display:grid;
 .ph .sp{flex:1}
 .ph select{min-height:34px;border-radius:6px;border:1px solid var(--line);background:var(--bg);padding:0 6px;font-size:14px}
 .pb{padding:4px 16px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
-.media img,.media video{display:block;width:100%;max-height:520px;object-fit:cover;background:#000}
+.media img,.media video{display:block;width:100%;max-height:520px;object-fit:contain;background:#111}
+.media img,.kr .tx img{cursor:zoom-in}
+#lb{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.92);display:grid;place-items:center;cursor:zoom-out;overflow:auto;touch-action:pinch-zoom}
+#lb img{max-width:96vw;max-height:92vh;object-fit:contain;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#lb img.full{max-width:none;max-height:none;cursor:zoom-out}
+#lb .x{position:fixed;top:10px;right:14px;color:#fff;font-size:30px;background:none;border:0;cursor:pointer;line-height:1}
 .ev{margin:4px 16px 12px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:12px}
 .cal{width:60px;text-align:center;border-radius:6px;overflow:hidden;border:1px solid var(--ink)}
 .cal b{display:block;background:var(--ink);color:#fff;font-size:12px;padding:2px 0;font-weight:600}
@@ -380,7 +385,7 @@ $('ctypes').innerHTML=Object.entries(TYPES).map(([k,v])=>`<button type="button" 
 $('ctypes').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;ctype=b.dataset.t;
  $('ctypes').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderExtra()};
 function renderExtra(){
- const x={text:'',
+ const x={text:'<input type="file" id="cfile" accept="image/*" aria-label="Přiložit obrázek"><span class="note">Obrázek je nepovinný (např. rozpis). Příspěvek se nezobrazí ve Fotkách.</span>',
   photo:'<input type="file" id="cfile" accept="image/*" aria-label="Vyberte fotku"><span class="note">Fotka se před uložením zmenší.</span>',
   video:'<input id="curl" type="url" placeholder="Odkaz na YouTube nebo jiný web"><span class="note">Video nahrajte na YouTube (třeba jako neveřejné) a vložte sem odkaz – na samotná videa nemá bezplatná databáze místo.</span>',
   event:'<input id="edate" type="date" aria-label="Datum"><input id="etime" type="time" aria-label="Čas"><input id="eplace" placeholder="Místo">',
@@ -408,6 +413,7 @@ $('compose').addEventListener('submit',async e=>{e.preventDefault();if(!me||post
  if(!text&&ctype==='text'){$('cerr').textContent='Napište text příspěvku.';return}
  posting=true;$('cerr').textContent='Ukládám…';
  try{
+  if(ctype==='text'&&f){const url=await fitImage(await readFile(f),2400,.85);if(!url)throw new Error('Obrázek se nepodařilo načíst.');p.media=await DB.putMedia(url,level)}
   if(ctype==='photo'){const url=await fitImage(await readFile(f),1600);if(!url)throw new Error('Fotku se nepodařilo načíst.');p.media=await DB.putMedia(url,level)}
   if(ctype==='file')p.file={name:f.name,size:(f.size/1024).toFixed(0)+' kB',media:await DB.putMedia(await readFile(f),level,f.name)};
   p.id=await DB.addPost(p);POSTS.unshift(p);$('cerr').textContent='';$('ctext').value='';renderExtra();composeClose();render()}
@@ -419,7 +425,7 @@ const MONTH=['led','úno','bře','dub','kvě','čvn','čvc','srp','zář','říj
 const ytId=u=>(u.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/)||[])[1];
 function body(p){
  let h=p.text?`<div class="pb">${esc(p.text)}</div>`:'';
- if(p.type==='photo'&&p.media)h+=`<div class="media"><img data-mid="${esc(p.media)}" alt="Fotka od ${esc(uname(p.author,p.authorName))}"></div>`;
+ if((p.type==='photo'||p.type==='text')&&p.media)h+=`<div class="media"><img data-mid="${esc(p.media)}" alt="Fotka od ${esc(uname(p.author,p.authorName))}"></div>`;
  if(p.type==='video'&&p.link){const id=ytId(p.link);
   h+=id?`<div class="media" style="aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/${esc(id)}" style="width:100%;height:100%;border:0" allow="encrypted-media; picture-in-picture" allowfullscreen title="Video"></iframe></div><a class="vlink" href="${esc(p.link)}" target="_blank" rel="noopener">Otevřít na YouTube</a>`
    :`<a class="vlink" href="${esc(p.link)}" target="_blank" rel="noopener">▶ Přehrát video: ${esc(p.link)}</a>`}
@@ -428,6 +434,12 @@ function body(p){
  if(p.type==='file'&&p.file)h+=`<div class="file">${ICON_FILE}<div><a href="#" data-dl="${esc(p.file.media||'')}" data-name="${esc(p.file.name)}">${esc(p.file.name)}</a><div class="note">${esc(p.file.size)}</div></div></div>`;
  return h;
 }
+/* zvětšení fotky po kliknutí (1. klik přes celou obrazovku, 2. klik plná velikost, mimo / Esc zavře) */
+function lightbox(src){const d=document.createElement('div');d.id='lb';d.innerHTML='<button class="x" type="button" aria-label="Zavřít">×</button>';
+ const im=new Image();im.src=src;im.alt='';d.appendChild(im);document.body.appendChild(d);document.body.style.overflow='hidden';
+ const close=()=>{d.remove();document.body.style.overflow='';removeEventListener('keydown',k)},k=e=>{if(e.key==='Escape')close()};addEventListener('keydown',k);
+ d.addEventListener('click',e=>{if(e.target===im&&!im.classList.contains('full')&&(im.naturalWidth>im.width+20||im.naturalHeight>im.height+20)){im.classList.add('full');return}close()})}
+document.addEventListener('click',e=>{const im=e.target.closest('.media img,.kr .tx img');if(im&&im.src&&!e.target.closest('#kEd'))lightbox(im.src)});
 /* fotky z databáze se doplní až po vykreslení */
 function fillMedia(root){root.querySelectorAll('img[data-mid]:not([src])').forEach(im=>{DB.getMedia(im.dataset.mid).then(u=>{im.src=u}).catch(()=>{im.alt='Fotku se nepodařilo načíst';im.classList.add('broken')})})}
 document.addEventListener('click',async e=>{const a=e.target.closest('[data-dl]');if(!a)return;e.preventDefault();
@@ -690,8 +702,9 @@ function render(){
  $('posts').innerHTML=list.length?list.map(p=>{
   const mine=me&&(me.id===p.author||me.role===3),liked=me&&p.likes.includes(me.id);
   const lvlSel=mine?`<select data-lvl="${esc(p.id)}" aria-label="Úroveň viditelnosti">${[1,2,3].filter(l=>l<=role()).map(l=>`<option value="${l}"${l===p.level?' selected':''}>${LVL[l]}</option>`).join('')}</select>`:'';
+  const typeSel=mine&&p.media&&(p.type==='photo'||p.type==='text')?`<select data-ptype="${esc(p.id)}" aria-label="Kategorie"><option value="text"${p.type==='text'?' selected':''}>Jen nástěnka</option><option value="photo"${p.type==='photo'?' selected':''}>Ve Fotkách</option></select>`:'';
   return `<article class="post"><div class="ph"><div class="av">${avatar(p.author,p.authorName)}</div>
-   <div><div class="n">${esc(uname(p.author,p.authorName))}</div><div class="t">${ago(p.ts)} · ${TYPES[p.type]}</div></div><span class="sp"></span>${lvlSel}</div>
+   <div><div class="n">${esc(uname(p.author,p.authorName))}</div><div class="t">${ago(p.ts)} · ${TYPES[p.type]}</div></div><span class="sp"></span>${typeSel}${lvlSel}</div>
    ${body(p)}
    <div class="pf">${me?`<button data-like="${esc(p.id)}" class="${liked?'on':''}">${liked?'♥':'♡'} ${p.likes.length||''} To se mi líbí</button>`:p.likes.length?`<span class="note" style="align-self:center;padding:0 10px">♡ ${p.likes.length}</span>`:''}
     <button data-cm="${esc(p.id)}">Komentáře ${p.comments.length||''}</button>${mine?`<button data-del="${esc(p.id)}">Smazat</button>`:''}</div>
@@ -712,7 +725,9 @@ $('posts').addEventListener('click',async e=>{
    await DB.delPost(id);await DB.delMedia(pMedia(p)).catch(()=>{});POSTS=POSTS.filter(x=>x.id!==id);delAsk=null;render()}}
  catch(err){fail(err)}
 });
-$('posts').addEventListener('change',async e=>{const s=e.target.closest('[data-lvl]');if(!s)return;
+$('posts').addEventListener('change',async e=>{const ts=e.target.closest('[data-ptype]');
+ if(ts){const p=POSTS.find(x=>x.id===ts.dataset.ptype);try{await DB.updatePost(p.id,{type:ts.value});p.type=ts.value;render()}catch(err){fail(err);render()}return}
+ const s=e.target.closest('[data-lvl]');if(!s)return;
  const p=POSTS.find(x=>x.id===s.dataset.lvl);if(!p)return;const level=Math.min(+s.value,role());
  try{
   /* při zpřístupnění širšímu okruhu nejdřív fotky, při zúžení nejdřív příspěvek */
