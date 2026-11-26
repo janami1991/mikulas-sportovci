@@ -692,7 +692,7 @@ $('kronika').addEventListener('click',async e=>{
 });
 /* žebříček hry (prvních 50; správce může záznam smazat) */
 async function renderZeb(){const el=$('zebricek');el.innerHTML='<p class="note">Načítám…</p>';
- try{const L=await DB.topScores(50),RN={mikulas:'Mikuláš',cert:'Čert',smrtka:'Smrtka',konik:'Koník',prda:'Prďa'},adm=role()>=3;
+ try{const L=await DB.topScores(50),RN={mikulas:'Mikuláš',cert:'Čert',smrtka:'Smrtka',konik:'Koník',prda:'Prďa',napalovac:'Napalovač'},adm=role()>=3;
   el.innerHTML=`<p class="note" style="margin-top:0">Nejlepší výsledky Mikulášské obchůzky. <a href="hra/index.html">Hrát</a></p>`+(L.length?`<div class="zeb"><span class="h"></span><span class="h">Hráč</span><span class="h">Domy</span><span class="h" style="text-align:right">Body</span><span></span>`+
    L.map((z,i)=>{const d=z.ts?new Date(z.ts):null;return `<span>${i+1}.</span><span>${esc(z.n)} <span class="r">${RN[z.r]||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span></span><span class="r">${z.h}</span><b>${z.s}</b><span>${adm?`<button class="x" data-zdel="${esc(z.id)}" type="button" title="Smazat">Smazat</button>`:''}</span>`}).join('')+'</div>':'<p>Zatím tu nikdo není.</p>');
   el.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Smazat záznam ze žebříčku?'))return;try{await DB.delScore(b.dataset.zdel);renderZeb()}catch(e){alert('Smazání se nepovedlo.')}})}

@@ -1,8 +1,8 @@
 // Logika místnosti (bez závislosti na Cloudflare – stejný kód běží i v testovacím serveru).
 // io: { all():[ws], att(ws), setAtt(ws,a), send(ws,str), close(ws,code,why), get(k), put(k,v) }
-export const LIMIT = { mikulas: 1, smrtka: 1, konik: 1, prda: 1, cert: 8 };
-export const MAX_HRACU = 12;      // hráčů s postavou
-export const MAX_SPOJENI = 16;    // včetně těch, kdo si teprve vybírají
+export const LIMIT = { mikulas: 1, smrtka: 1, konik: 1, prda: 1, cert: 8, napalovac: 6 };
+export const MAX_HRACU = 12;      // hráčů v družině (napalovači mají vlastní limit 6)
+export const MAX_SPOJENI = 22;    // včetně těch, kdo si teprve vybírají
 const MAX_ZPRAVA = 32000;
 
 const rid = () => Math.random().toString(36).slice(2, 8);
@@ -26,7 +26,8 @@ export class Room {
   /* přehled pro seznam místností: počet hráčů s postavou, všech připojených a jestli se hraje */
   async prehled() {
     const h = this.zive().map(w => this.io.att(w));
-    return { hraci: h.filter(a => a.r).length, pripojeni: h.length, hraje: h.length ? !!(await this.io.get("hraje")) : false };
+    return { hraci: h.filter(a => a.r).length, pripojeni: h.length, hraje: h.length ? !!(await this.io.get("hraje")) : false,
+             seznam: h.map(a => ({ n: a.n, r: a.r || "" })) };   /* přezdívky a postavy pro seznam her */
   }
 
   async rozeslat(bez) {
@@ -64,9 +65,10 @@ export class Room {
       if (r && !(r in LIMIT)) return;
       if (r) {
         const ost = this.zive(ws).map(w => this.io.att(w));
-        const stejne = ost.filter(o => o.r === r).length, celkem = ost.filter(o => o.r).length;
-        if (stejne >= LIMIT[r] || celkem >= MAX_HRACU) {
-          this.io.send(ws, JSON.stringify({ t: "chyba", m: celkem >= MAX_HRACU ? "Hra je plná (12 hráčů)." : "Tahle postava je už obsazená." }));
+        const stejne = ost.filter(o => o.r === r).length, celkem = ost.filter(o => o.r && o.r !== "napalovac").length;
+        const plno = r !== "napalovac" && celkem >= MAX_HRACU;
+        if (stejne >= LIMIT[r] || plno) {
+          this.io.send(ws, JSON.stringify({ t: "chyba", m: plno ? "Družina je plná (12 hráčů)." : r === "napalovac" ? "Napalovačů je už 6." : "Tahle postava je už obsazená." }));
           return;
         }
       }

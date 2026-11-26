@@ -103,6 +103,7 @@ button.big2{background:transparent}
 .rooms{display:grid;gap:8px}
 .room{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:8px 8px 8px 14px}
 .room b{font-size:17px}
+.room .kdo{color:#d6d6d6;margin-top:4px}
 .room small{display:block;color:#a0a0a0;font-size:13px;margin-top:2px}
 .room .big2{min-height:42px;padding:0 18px;font-size:15px}
 .room .big2[disabled]{opacity:.35;cursor:not-allowed}
@@ -136,8 +137,8 @@ button.big2{background:transparent}
 <div id="ui" class="hide">
  <div id="hud">
   <div class="pill">Body <b id="hScore">0</b></div>
-  <div class="pill">Domy s družinou <b id="hHouses">0</b>/<span id="hHousesT"></span></div>
-  <div class="pill">Chyceno <b id="hCaught">0</b></div>
+  <div class="pill"><span id="hHousesL">Domy s družinou</span> <b id="hHouses">0</b><span id="hHousesS">/<span id="hHousesT"></span></span></div>
+  <div class="pill"><span id="hCaughtL">Chyceno</span> <b id="hCaught">0</b></div>
   <div class="pill" id="hTime">20:00</div>
  </div>
  <div id="board" class="hide"></div>
@@ -187,7 +188,7 @@ button.big2{background:transparent}
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Hrát</button>
-  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>B</b> kolo / vlečka traktoru (čert) · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu (napalovač: zazvonit čertovi / ukrást nadílku Mikulášovi) · <b>Mezerník</b> napalovač: držet = mířit, pustit = hodit · <b>F</b> popelnice (čert) · <b>B</b> kolo / vlečka traktoru (čert) · <b>myš (tažení)</b> otáčení kamery</div>
   <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>, u vlečky traktoru <b>Vlečka</b> (čert). Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <button class="big2" id="spBack" type="button">← Zpět do menu</button>
@@ -206,13 +207,13 @@ button.big2{background:transparent}
 <div class="screen hide" id="mp">
  <div class="card">
   <h1>Hra více hráčů</h1>
-  <p>Až 12 hráčů v jedné družině, body sbírá každý sám za sebe. Postavy, které nikdo nevybere, hraje počítač. Kdo 60 s nic nedělá, toho hra odpojí.</p>
+  <p>Až 12 hráčů v jedné družině a k tomu až 6 napalovačů proti ní, body sbírá každý sám za sebe. Postavy, které nikdo nevybere, hraje počítač. Kdo 60 s nic nedělá, toho hra odpojí.</p>
   <div id="mpJoin" class="card">
    <div><div class="lbl">Přezdívka</div><input class="inp" id="mpName" maxlength="16" autocomplete="nickname"></div>
-   <div><div class="lbl">Místnosti</div><div class="rooms" id="mpRooms">Načítám…</div></div>
+   <div><div class="lbl">Hry</div><div class="rooms" id="mpRooms">Načítám…</div></div>
   </div>
   <div id="mpRoom" class="card hide">
-   <div><div class="lbl">Místnost</div><b id="mpRoomCode"></b></div>
+   <div><b id="mpRoomCode"></b></div>
    <div><div class="lbl">Hráči</div><div class="res" id="mpList"></div></div>
    <div><div class="lbl">Tvoje postava</div><div class="opts" id="mpChar"></div></div>
    <div id="mpVarW" class="hide"><div class="lbl">Vzhled čerta</div><div class="opts five" id="mpVar"></div></div>

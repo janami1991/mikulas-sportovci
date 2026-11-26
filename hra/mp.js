@@ -7,8 +7,8 @@
 const SERVER=new URLSearchParams(location.search).get('server')||'wss://mikulas-mp.janami1991.workers.dev';
 const SEND_DT=.125;                 /* 8 zpráv za sekundu */
 const IDLE_KICK=60, IDLE_WARN=45;   /* nečinnost ve hře (s) */
-const ROLE_N={mikulas:'Mikuláš',cert:'Čert',konik:'Koník',smrtka:'Smrtka',prda:'Prďa'};
-const LIMIT={mikulas:1,smrtka:1,konik:1,prda:1,cert:8};
+const ROLE_N={mikulas:'Mikuláš',cert:'Čert',konik:'Koník',smrtka:'Smrtka',prda:'Prďa',napalovac:'Napalovač'};
+const LIMIT={mikulas:1,smrtka:1,konik:1,prda:1,cert:8,napalovac:6};
 const r2=v=>Math.round(v*100)/100, r1=v=>Math.round(v*10)/10;
 
 let ws=null,code='',lobby=null,myRole='',myVar=+store('obchuzka-cert')||1,inGame=false,sendT=0,snapN=0,evQ=[],lastAct=performance.now(),joinT=0,boardT=0,lastSnap=null;
@@ -33,13 +33,14 @@ $('bMulti').onclick=()=>{showScreen('mp');renderMp()};
 $('mpBack').onclick=()=>{disconnect();showScreen('menu')};
 $('mpName').value=store('obchuzka-jmeno')||'';
 const nameOk=()=>{const n=$('mpName').value.trim();if(!n){mpMsg('Napiš přezdívku.');$('mpName').focus();return null}store('obchuzka-jmeno',n);return n};
-/* ---------- seznam pevných místností 1–6 (stav ze serveru, obnovuje se každých 10 s) ---------- */
+/* ---------- seznam pevných her 1–3 (stav ze serveru, obnovuje se každých 10 s) ---------- */
 const ROOMS_URL=SERVER.replace(/^ws/,'http')+'/mistnosti';let roomsT=0,roomsData=null;
 function roomsLoop(){clearTimeout(roomsT);if($('mp').classList.contains('hide')||lobby||ws)return;loadRooms();roomsT=setTimeout(roomsLoop,10000)}
 async function loadRooms(){try{const r=await fetch(ROOMS_URL,{cache:'no-store'});roomsData=(await r.json()).m}catch(e){roomsData=null}renderRooms()}
 function renderRooms(){const el=$('mpRooms');if(!roomsData){el.innerHTML='<span class="keys">Server není dostupný.</span>';return}
-  el.innerHTML=roomsData.map(r=>{const plno=r.hraci>=12||r.pripojeni>=16,txt=!r.pripojeni?'prázdná':`${r.hraci}/12 hráčů${r.pripojeni>r.hraci?` (+${r.pripojeni-r.hraci} vybírá)`:''} · ${r.hraje?'hraje se':'čeká se na start'}`;
-    return `<div class="room${r.pripojeni?' on':''}"><div><b>Místnost ${r.c}</b><small>${txt}</small></div><button class="big2" type="button" data-room="${r.c}"${plno?' disabled':''}>${plno?'Plno':'Připojit'}</button></div>`}).join('')}
+  el.innerHTML=roomsData.map(r=>{const plno=r.hraci>=18||r.pripojeni>=22,txt=!r.pripojeni?'prázdná':`${r.hraci} ${r.hraci===1?'hráč':r.hraci<5?'hráči':'hráčů'}${r.pripojeni>r.hraci?` (+${r.pripojeni-r.hraci} vybírá)`:''} · ${r.hraje?'hraje se':'čeká se na start'}`;
+    const kdo=(r.seznam||[]).map(p=>`${esc(p.n)}${p.r?' ('+(ROLE_N[p.r]||p.r)+')':''}`).join(', ');
+    return `<div class="room${r.pripojeni?' on':''}"><div><b>Hra ${r.c}</b><small>${txt}</small>${kdo?`<small class="kdo">${kdo}</small>`:''}</div><button class="big2" type="button" data-room="${r.c}"${plno?' disabled':''}>${plno?'Plno':'Připojit'}</button></div>`}).join('')}
 $('mpRooms').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b||b.disabled)return;const n=nameOk();if(!n)return;clearTimeout(roomsT);connect(b.dataset.room,n)});
 $('mpStart').onclick=()=>{if(!lobby)return;
   if(!myRole){mpErr('Vyber si postavu.',1);return}
@@ -55,7 +56,7 @@ function connect(c,name){disconnect();code=c;mpMsg('Připojuji…');
   const me=ws;
   ws.onmessage=e=>{if(ws!==me)return;let m;try{m=JSON.parse(e.data)}catch(_){return}onMsg(m)};
   ws.onclose=()=>{if(ws!==me)return;ws=null;const was=NET.on&&state==='play';NET.on=false;inGame=false;lobby=null;
-    if(was)showEnd('left','Spojení se serverem se přerušilo.');else{mpMsg(mpFull?'Místnost je plná – vyber jinou, nebo hraj sám (Zpět → Jeden hráč).':'Spojení se serverem se přerušilo.');renderMp()}mpFull=false};
+    if(was)showEnd('left','Spojení se serverem se přerušilo.');else{mpMsg(mpFull?'Hra je plná – vyber jinou, nebo hraj sám (Zpět → Jeden hráč).':'Spojení se serverem se přerušilo.');renderMp()}mpFull=false};
   ws.onerror=()=>{if(ws===me)mpMsg('Server není dostupný.')}}
 let mpFull=false;
 function disconnect(){if(ws){const w=ws;ws=null;try{w.close()}catch(e){}}NET.on=false;inGame=false;lobby=null;myRole='';hideTags()}
@@ -74,7 +75,11 @@ function onMsg(m){
   case 'pts':onPts(m);break;
   case 'hit':if(inGame&&NET.host){const e=entBy(m.from);if(!e)break;const R=ROLE[e.role];
     for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
-    for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}}break;
+    for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}
+    for(const pid of m.n||[]){const n=entBy(pid);if(n&&n.nap&&Math.hypot(n.pos.x-e.pos.x,n.pos.z-e.pos.z)<R.dosah+2.5)hitNap(e,n)}}break;
+  case 'nb':if(inGame){const e=entBy(m.from);if(e)addNball(e,m.x,m.y,m.z,m.vx,m.vy,m.vz)}break;
+  case 'nbhit':if(inGame&&NET.host){const by=entBy(m.by),v=entBy(m.from);if(by&&v)napHit(by,v)}break;
+  case 'nap':if(inGame&&NET.host){const e=entBy(m.from);if(e&&e.nap)doNap(e,m.a,ents[m.ti])}break;
   case 'bin':if(inGame)onBin(m,entBy(m.from));break;
   case 'kolo':if(inGame)onKolo(m,entBy(m.from));break;
   case 'trak':if(inGame)onTrak(m,entBy(m.from));break;
@@ -89,21 +94,21 @@ function onLobby(m){const wasHost=NET.host;lobby=m;
   if(inGame&&state==='play'){if(NET.host&&!wasHost)becomeHost();if(NET.host)reconcile()}
   renderMp()}
 function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('mpRoom').classList.toggle('hide',!on);if(!on){if(!ws)roomsLoop();return}
-  $('mpRoomCode').textContent='Místnost '+code;
+  $('mpRoomCode').textContent='Hra '+code;
   $('mpList').innerHTML=lobby.hraci.map(p=>`<span>${esc(p.n)}${p.id===NET.me?' (ty)':''}${p.id===lobby.host?' ★':''}</span><b>${p.r?ROLE_N[p.r]:'vybírá…'}</b>`).join('');
   const taken={};for(const p of lobby.hraci)if(p.r&&p.id!==NET.me)taken[p.r]=(taken[p.r]||0)+1;
-  const total=lobby.hraci.filter(p=>p.r&&p.id!==NET.me).length;
-  const list=POSTAVY.filter(o=>o.id in LIMIT).map(o=>{const left=LIMIT[o.id]-(taken[o.id]||0),off=(left<=0||total>=12)&&myRole!==o.id;
-    return {id:o.id,n:o.n,d:off?'obsazeno':o.id==='cert'?`volno ${left}×`:o.d,off:off?1:0}});
+  const total=lobby.hraci.filter(p=>p.r&&p.r!=='napalovac'&&p.id!==NET.me).length;
+  const list=POSTAVY.filter(o=>o.id in LIMIT).map(o=>{const left=LIMIT[o.id]-(taken[o.id]||0),off=(left<=0||(total>=12&&o.id!=='napalovac'))&&myRole!==o.id;
+    return {id:o.id,n:o.n,d:off?'obsazeno':o.id==='cert'||o.id==='napalovac'?`volno ${left}×`:o.d,off:off?1:0}});
   const lock=inGame;
   opts($('mpChar'),list,myRole,v=>{if(lock)return;myRole=v;mpErr('');NET.send({t:'role',r:v,v:myVar});$('mpVarW').classList.toggle('hide',v!=='cert')},o=>o.id+':'+(o.id==='cert'?myVar:1),
-    v=>mpErr(total>=12?'Hra je plná (12 hráčů).':(v==='cert'?'Všichni čerti jsou obsazení.':(ROLE_N[v]||'Postava')+' je už obsazen'+(v==='smrtka'?'á.':'ý.'))+' Vyber si jinou postavu.'));
+    v=>mpErr(v==='napalovac'?'Napalovačů je už 6.':total>=12?'Družina je plná (12 hráčů).':(v==='cert'?'Všichni čerti jsou obsazení.':(ROLE_N[v]||'Postava')+' je už obsazen'+(v==='smrtka'?'á.':'ý.'))+' Vyber si jinou postavu.'));
   opts($('mpVar'),VARIANTY,myVar,v=>{myVar=+v;store('obchuzka-cert',myVar);if(myRole==='cert')NET.send({t:'role',r:'cert',v:myVar});const im=$('mpChar').querySelector('[data-id=cert] img');if(im)im.src=thumbs('cert:'+myVar)},o=>'cert:'+o.id+':h');
   $('mpVarW').classList.toggle('hide',myRole!=='cert');fillThumbs($('mpChar'));fillThumbs($('mpVar'));
   const host=lobby.host===NET.me,n=lobby.hraci.filter(p=>p.r).length;
   if(lobby.hraje){$('mpStart').classList.remove('hide');$('mpStart').textContent='Připojit se do rozehrané hry';$('mpInfo').textContent='Hra už běží – vyber volnou postavu a připoj se.'}
   else if(host){$('mpStart').classList.remove('hide');$('mpStart').textContent=`Vyjít na stranu (${n} ${n===1?'hráč':n<5?'hráči':'hráčů'})`;
-    $('mpInfo').textContent='Ty hru zakládáš (★). Chybějící Mikuláše, Smrtku, Koníka, Prďu a čerty doplní počítač.'}
+    $('mpInfo').textContent='Ty hru zakládáš (★). Chybějící Mikuláše, Smrtku, Koníka, Prďu a čerty doplní počítač. Napalovači-hráči hrají proti družině.'}
   else{$('mpStart').classList.add('hide');$('mpInfo').textContent='Čeká se, až zakladatel (★) vyjde na stranu.'}}
 
 /* ---------- start hry ---------- */
@@ -113,15 +118,17 @@ function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=M.start||[0,0
   const hc=pick('cert'),nC=Math.max(5,hc.length),freeV=[1,2,3,4,5].filter(v=>!hc.some(p=>p.v===v));let fi=0;
   for(let i=0;i<nC;i++)add('cert',hc[i],freeV.length?freeV[fi++%freeV.length]:1+i%5);
   for(const r of['konik','smrtka','prda'])add(r,pick(r)[0],1);
-  team.forEach((t,i)=>{const a=i/team.length*Math.PI*2,p=new THREE.Vector3(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(p,.45);t.x=r2(p.x);t.z=r2(p.z);t.f=r2(Math.PI)});
+  const nD=team.length;for(const p of pick('napalovac'))add('napalovac',p,1);
+  team.forEach((t,i)=>{if(t.r==='napalovac'){const[x,z]=napSpawn(s[0],s[1],28,40);t.x=r2(x);t.z=r2(z);t.f=0;return}const a=i/nD*Math.PI*2,p=new THREE.Vector3(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(p,.45);t.x=r2(p.x);t.z=r2(p.z);t.f=r2(Math.PI)});
   const board={};for(const t of team)if(t.pid)board[t.pid]=newRow(t);
   NET.send({t:'go',team,board});startNet(team,board)}
-const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0,psi:0});
+const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0,psi:0,nb:0,nk:0,nz:0,nc:0});
 function startNet(team,board){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.host===NET.me;NET.board=board||{};evQ=[];sendT=0;snapN=0;lastSnap=null;lastAct=performance.now();
   resetGame(team);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
   const b=NET.board[NET.me];if(b)myStats(b);
   state='play';navNear=false;setMapBig(false);showScreen('none');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
   $('bPause').classList.add('hide');$('bEnd').textContent='Odejít ze hry';boardT=0;renderBoard();
+  if(player.nap)toast('Jsi napalovač proti družině! Mezerník držet = mířit, pustit = koule. Q u čerta = zvonce, u Mikuláše u domu = nadílka.',4500);else
   toast(player.role==='mikulas'?'Jsi Mikuláš – veď družinu k domům se žlutým světlem.':'Drž se družiny u domů a chytej napalovače! Body sbíráš sám za sebe.',3500);last=performance.now();
   if(isTouch&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{})}
 
@@ -131,7 +138,7 @@ function teamMsg(){return ents.map(e=>({r:e.role,v:e.v,pid:e.pid,n:e.name,x:r2(e
 function sendTeam(){NET.send({t:'team',team:teamMsg(),board:NET.board});renderBoard()}
 function hostJoin(pid){if(entBy(pid))return sendTeam();const p=lobby&&lobby.hraci.find(x=>x.id===pid);if(!p||!p.r)return;
   let e=ents.find(x=>!x.human&&x.role===p.r);
-  if(!e){const L=leader(),[x,z]=spawnPoint(L.pos.x,L.pos.z,2,5);e=newEnt(p.r,false,ents.length,p.v);e.pos.set(x,0,z);ents.push(e)}
+  if(!e){const L=leader(),[x,z]=p.r==='napalovac'?napSpawn(L.pos.x,L.pos.z,30,45):spawnPoint(L.pos.x,L.pos.z,2,5);e=newEnt(p.r,false,ents.length,p.v);e.pos.set(x,0,z);ents.push(e)}
   else if(e.v!==p.v)replaceMesh(e,p.r,p.v);
   e.human=true;e.pid=pid;e.name=p.n;e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face;e.st='follow';
   NET.board[pid]=NET.board[pid]||newRow({n:p.n,r:p.r});toast(`${p.n} se připojil(a) jako ${ROLE_N[p.r]}`,2000);sendTeam()}
@@ -184,6 +191,8 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
   for(let i=cars.length-1;i>=0;i--)if(!seen.has(cars[i].id)){scene.remove(cars[i].mesh);cars.splice(i,1)}
   for(const ev of m.ev||[]){
     if(ev[0]==='s'){const k=kids[ev[1]];if(k)say(k,ev[2],ev[3]||undefined)}
+    else if(ev[0]==='nc'){const n=entBy(ev[1]);if(n)napOut(n,ev[2],ev[3])}
+    else if(ev[0]==='cink'){const c=ents[ev[1]];if(c)c.jingle=1}
     else if(ev[0]==='ds'){const g=dogs[ev[1]];if(g){g.bub.textContent=ev[2];g.bub.classList.remove('hide');g.bubT=ev[3]||1400}}
     else if(ev[0]==='pb'){if(ev[1]===NET.me)biteMe()}
     else if(ev[0]==='b')addBall(ev[1],ev[2],ev[3],ev[4],ev[5],ev[6]);
@@ -248,8 +257,8 @@ function showEnd(reason,msg,board){if(board)NET.board=board;const b=NET.board[NE
   $('endT').textContent=msg||(reason==='done'?'Strana obejitá!':reason==='time'?'Čas vypršel':'Obchůzka skončila');
   const rs=rows(NET.board);
   $('endRes').innerHTML=rs.map((r,i)=>`<span class="${r.id===NET.me?'me':''}">${i+1}. ${esc(r.n)} · ${ROLE_N[r.r]||''}${r.left?' (odešel)':''}</span><b class="${r.id===NET.me?'me':''}">${r.score}</b>`).join('')+
-    (b?`<span class="tot">Tvoje body: domy ${b.houses} · strašení ${b.scareP} · chycení ${b.caught} · psi ${b.psi||0}${b.penalty?` · pokuta −${b.penalty}`:''}</span><b class="tot">${b.score}</b>`:'');
-  $('endBest').textContent='';if(b)zebEnd({s:b.score,h:b.houses,c:b.caught,p:b.psi||0,r:b.r||myRole,mp:true},$('mpName').value.trim());$('bMenu').classList.remove('hide');$('bAgain').textContent=open()?'Zpět do místnosti':'Hrát znovu'}
+    (b?(b.r==='napalovac'?`<span class="tot">Tvoje body: koule ${b.nb||0} · nadílky ${b.nk||0} · zvonce ${b.nz||0} · chytili tě ${b.nc||0}×</span><b class="tot">${b.score}</b>`:`<span class="tot">Tvoje body: domy ${b.houses} · strašení ${b.scareP} · chycení ${b.caught} · psi ${b.psi||0}${b.penalty?` · pokuta −${b.penalty}`:''}</span><b class="tot">${b.score}</b>`):'');
+  $('endBest').textContent='';if(b)zebEnd(b.r==='napalovac'?{s:b.score,h:0,c:b.nb||0,p:0,r:'napalovac',mp:true}:{s:b.score,h:b.houses,c:b.caught,p:b.psi||0,r:b.r||myRole,mp:true},$('mpName').value.trim());$('bMenu').classList.remove('hide');$('bAgain').textContent=open()?'Zpět do výběru postav':'Hrát znovu'}
 
 /* ---------- nečinnost a skrytá karta ---------- */
 const act=()=>{lastAct=performance.now()};

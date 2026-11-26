@@ -31,7 +31,7 @@ export class Mistnost extends DurableObject {
   async webSocketError(ws) { await this.room.close(ws); }
 }
 
-export const MISTNOSTI = 6;   // pevné místnosti 1–6
+export const MISTNOSTI = 3;   // pevné hry (místnosti) 1–3
 const mistnost = (env, n) => env.MISTNOST.get(env.MISTNOST.idFromName(String(n)));
 
 export default {
