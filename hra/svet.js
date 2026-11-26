@@ -286,6 +286,10 @@ function obyvDef(b){if(!b.adr||GARAGE.includes(b.t)||b.t==='barn')return {m:0,z:
   const H=n=>((b.i*2654435761+n*40503)>>>0)%1000/1000,ad=1+Math.floor(H(1)*2.6),dt=Math.floor(H(2)*3.4);
   let m=0,z=0;if(ad>=2){m=1;z=1;if(ad>2)(H(3)<.5?m++:z++)}else(H(3)<.45?m=1:z=1);
   let h=0,k=0;for(let i=0;i<dt;i++)H(10+i)<.5?h++:k++;return {m,z,h,k}}
+/* pes u domu a popelnice u domu: z editoru (ov.pes / ov.pop = 1 ano, 0 ne), jinak náhodně podle domu */
+function bydli(b){return !!b.adr&&!GARAGE.includes(b.t)&&b.t!=='barn'}
+function pes(b){const v=b.ov&&b.ov.pes;if(v!==undefined&&v!=='')return !!+v;return bydli(b)&&hash(b.i*7+3)<.22}
+function popel(b){const v=b.ov&&b.ov.pop;if(v!==undefined&&v!=='')return !!+v;return bydli(b)&&hash(b.i*11+5)<.6}
 function obyv(b){const o=b.ov&&b.ov.ob;if(!o)return obyvDef(b);const c=v=>Math.max(0,Math.min(9,Math.round(+v||0)));return {m:c(o.m),z:c(o.z),h:c(o.h),k:c(o.k)}}
 
 /* ===================== BUDOVY: vykreslení ===================== */

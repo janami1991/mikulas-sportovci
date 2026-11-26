@@ -244,6 +244,9 @@ function panelDum(){const b=ED.b;let h=`<div class="sec"><h2>Najít dům</h2><di
     h+=`</div><div class="sec"><h2>Obyvatelé</h2><div class="note">Vyjdou před dům, když je u něj družina. ${cust?'Nastaveno ručně.':'Zatím náhodně (výchozí).'}</div>
     ${on2('obM','Muži',ob.m)}${on2('obZ','Ženy',ob.z)}${on2('obK','Kluci',ob.k)}${on2('obH','Holky',ob.h)}
     <div class="btns"><button class="btn" id="obRnd" type="button">Náhodně</button><button class="btn" id="obNone" type="button">Nikdo</button>${cust?'<button class="btn" id="obDef" type="button">Výchozí</button>':''}</div>`}
+  {const yn=(id,lab,on,cust)=>`<div class="row"><label>${lab}${cust?'':' <small>(výchozí)</small>'}</label><span class="btns" style="margin:0"><button class="btn ${on?'pri':''}" id="${id}1" type="button">Ano</button><button class="btn ${on?'':'pri'}" id="${id}0" type="button">Ne</button>${cust?`<button class="btn" id="${id}D" type="button">Výchozí</button>`:''}</span></div>`;
+    h+=`</div><div class="sec"><h2>Pes a popelnice</h2><div class="note">Pes u domu napadá družinu (čert ho zažene 3 ranami, ostatní 4). Popelnici u domu může čert zvednout a hodit.</div>
+    ${yn('pes','Pes',pes(b),o.pes!==undefined)}${yn('pop','Popelnice',popel(b),o.pop!==undefined)}`}
   h+=`</div><div class="sec"><h2>Přístupová cesta</h2><div class="note">${UPR.cesty[b.id]?(UPR.cesty[b.id].del?'Bez cesty.':'Vlastní cesta.'):'Automatická (od silnice ke dveřím).'}</div>
    <div class="btns"><button class="btn" id="pEdit" type="button">Upravit body</button><button class="btn" id="pDraw" type="button">Nakreslit novou</button>
    <button class="btn" id="pNone" type="button">Bez cesty</button><button class="btn" id="pAuto" type="button">Automatická</button></div>
@@ -316,6 +319,9 @@ function bindDum(){const b=ED.b,on=(id,ev,f)=>{const el=$(id);if(el)el.addEventL
   on('obRnd','click',()=>{const r=n=>Math.floor(Math.random()*n),ad=1+r(3),dt=r(4),v={m:0,z:0,h:0,k:0};
     if(ad===1)Math.random()<.45?v.m=1:v.z=1;else{v.m=1;v.z=1;if(ad>2)Math.random()<.5?v.m++:v.z++}for(let i=0;i<dt;i++)Math.random()<.5?v.h++:v.k++;setOb(v)});
   on('obNone','click',()=>setOb({m:0,z:0,h:0,k:0}));on('obDef','click',()=>setOb(null));
+  /* pes a popelnice (jen data) */
+  for(const k of['pes','pop']){const setK=v=>{snap();const q=o();if(v===null)delete q[k];else q[k]=v;cleanOv(b.id);b.ov=UPR.b[b.id]||{};changed();renderPanel()};
+    on(k+'1','click',()=>setK(1));on(k+'0','click',()=>setK(0));on(k+'D','click',()=>setK(null))}
   /* přístupová cesta */
   on('pEdit','click',()=>{const p=housePath(b);if(!p&&!UPR.cesty[b.id]){toast('Dům nemá cestu – nakresli novou');return}snap();
     if(!UPR.cesty[b.id]||UPR.cesty[b.id].del)UPR.cesty[b.id]={p:(p?p.p:[[b.door.x,b.door.z],[b.door.x+3,b.door.z]]).map(q=>[r1(q[0]),r1(q[1])]),w:p?p.w:1.5};

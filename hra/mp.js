@@ -73,7 +73,9 @@ function onMsg(m){
   case 's':if(inGame&&!NET.host)applySnap(m);break;
   case 'pts':onPts(m);break;
   case 'hit':if(inGame&&NET.host){const e=entBy(m.from);if(!e)break;const R=ROLE[e.role];
-    for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}}break;
+    for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
+    for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}}break;
+  case 'bin':if(inGame)onBin(m,entBy(m.from));break;
   case 'scare':if(inGame&&NET.host){const e=entBy(m.from);if(e)doScare(e)}break;
   case 'join':if(inGame&&NET.host)hostJoin(m.from);break;
   }}
@@ -112,7 +114,7 @@ function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=M.start||[0,0
   team.forEach((t,i)=>{const a=i/team.length*Math.PI*2,p=new THREE.Vector3(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(p,.45);t.x=r2(p.x);t.z=r2(p.z);t.f=r2(Math.PI)});
   const board={};for(const t of team)if(t.pid)board[t.pid]=newRow(t);
   NET.send({t:'go',team,board});startNet(team,board)}
-const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0});
+const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0,psi:0});
 function startNet(team,board){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.host===NET.me;NET.board=board||{};evQ=[];sendT=0;snapN=0;lastSnap=null;lastAct=performance.now();
   resetGame(team);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
   const b=NET.board[NET.me];if(b)myStats(b);
@@ -144,6 +146,7 @@ function syncTeam(team,board){if(board)NET.board=board;
 function becomeHost(){
   for(const k of kids){const c=k.code||0;k.st=c===2?'down':c===1?'flee':'roam';k.t=c===2?3:rnd(1,3);k.gone=c===3?2:0;k.stamina=100;k.throwCd=rnd(2,5);k.hp=1;k.freeze=0;k.turn=0;k.turnT=0;
     if(c!==2){k.mesh.rotation.set(0,k.face,0);k.star.visible=false}}
+  dogsHost();
   for(const e of ents){if(e.human)continue;e.st='return';e.target=null;e.chaseCd=rnd(2,5);e.attack=0}
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(3,8);
   const o=route[ri];if(o){grp.house=o.b;grp.door=o.d;if(grp.phase==='walk')planTo(ri)}
@@ -160,9 +163,10 @@ function onPts(m){const b=m.b;if(b)NET.board[m.pid]=b;if(m.pid===NET.me){if(b)my
 const ST=['follow','chase','hold','return'];
 function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:0,gt:r1(grp.t),me:myState(),
     e:ents.map(e=>e.human?0:[r2(e.pos.x),r2(e.pos.z),r2(e.face),r1(e.spd||0),e.running?1:0,e.atkN,0,Math.max(0,ST.indexOf(e.st))]),
+    dg:dogsSnap(),
     k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='flee'?1:0]),
     c:cars.map(c=>{if(!c.id)c.id=++carSeq;return [c.id,r2(c.pos.x),r2(c.pos.z),r2(c.face),r1(c.spd)]})};
-  if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0)s.b=NET.board;return s}
+  if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0){s.b=NET.board;s.bn=binsSnap()}return s}
 let carSeq=0;
 function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.length-1);
   if(m.ri!==ri){for(let i=ri;i<m.ri&&i<route.length;i++)route[i].with=i===m.ri-1&&Math.hypot(player.pos.x-route[i].b.cx,player.pos.z-route[i].b.cz)<18;ri=m.ri;updMarks()}
@@ -172,11 +176,14 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
   while(kids.length<m.k.length){const k=newKid(kids.length);kids.push(k)}
   while(kids.length>m.k.length){const k=kids.pop();scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}
   m.k.forEach((a,i)=>{const k=kids[i];if(k.tx===undefined){k.pos.x=a[0];k.pos.z=a[1]}k.tx=a[0];k.tz=a[1];k.tf=a[2];if(k.code!==a[3]){if(a[3]===2)k.t=0;k.code=a[3]}});
+  if(m.dg)dogsApply(m.dg);if(m.bn)binsApply(m.bn);
   const seen=new Set();
   for(const a of m.c){seen.add(a[0]);let c=cars.find(x=>x.id===a[0]);if(!c){const mesh=makeCar();scene.add(mesh);c={id:a[0],mesh,pos:new THREE.Vector3(a[1],0,a[2]),face:a[3],spd:a[4],honk:0};cars.push(c)}c.tx=a[1];c.tz=a[2];c.tf=a[3];c.spd=a[4]}
   for(let i=cars.length-1;i>=0;i--)if(!seen.has(cars[i].id)){scene.remove(cars[i].mesh);cars.splice(i,1)}
   for(const ev of m.ev||[]){
     if(ev[0]==='s'){const k=kids[ev[1]];if(k)say(k,ev[2],ev[3]||undefined)}
+    else if(ev[0]==='ds'){const g=dogs[ev[1]];if(g){g.bub.textContent=ev[2];g.bub.classList.remove('hide');g.bubT=ev[3]||1400}}
+    else if(ev[0]==='pb'){if(ev[1]===NET.me)biteMe()}
     else if(ev[0]==='b')addBall(ev[1],ev[2],ev[3],ev[4],ev[5],ev[6]);
     else if(ev[0]==='z'){const r=route[ev[1]];if(r)toast(`Zastávka: ${r.b.adr||'dům '+(ev[1]+1)}`,1400)}}
   if(m.b){NET.board=m.b;const b=m.b[NET.me];if(b)myStats(b);renderBoard()}}
@@ -239,7 +246,7 @@ function showEnd(reason,msg,board){if(board)NET.board=board;const b=NET.board[NE
   $('endT').textContent=msg||(reason==='done'?'Strana obejitá!':reason==='time'?'Čas vypršel':'Obchůzka skončila');
   const rs=rows(NET.board);
   $('endRes').innerHTML=rs.map((r,i)=>`<span class="${r.id===NET.me?'me':''}">${i+1}. ${esc(r.n)} · ${ROLE_N[r.r]||''}${r.left?' (odešel)':''}</span><b class="${r.id===NET.me?'me':''}">${r.score}</b>`).join('')+
-    (b?`<span class="tot">Tvoje body: domy ${b.houses} · strašení ${b.scareP} · chycení ${b.caught}${b.penalty?` · pokuta −${b.penalty}`:''}</span><b class="tot">${b.score}</b>`:'');
+    (b?`<span class="tot">Tvoje body: domy ${b.houses} · strašení ${b.scareP} · chycení ${b.caught} · psi ${b.psi||0}${b.penalty?` · pokuta −${b.penalty}`:''}</span><b class="tot">${b.score}</b>`:'');
   $('endBest').textContent='';$('bMenu').classList.remove('hide');$('bAgain').textContent=open()?'Zpět do místnosti':'Hrát znovu'}
 
 /* ---------- nečinnost a skrytá karta ---------- */

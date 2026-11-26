@@ -47,6 +47,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 #tRun{width:64px;height:64px;right:calc(max(18px,env(safe-area-inset-right)) + 96px);bottom:max(26px,env(safe-area-inset-bottom));font-size:13px}
 #tScare{width:70px;height:70px;right:calc(max(18px,env(safe-area-inset-right)) + 10px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 96px);font-size:13px;background:rgba(255,209,102,.75);color:#111}
 .tbtn.on{background:rgba(255,255,255,.4)}
+#tBin{width:66px;height:66px;right:calc(max(18px,env(safe-area-inset-right)) + 104px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 100px);font-size:12px;background:rgba(60,90,60,.8)}
+#binHint{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 104px);transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:8px;font-size:14px;pointer-events:none}
 
 /* menu */
 .screen{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 30%,#2a2a2a 0,#0d0d0d 70%);overflow:auto;padding:20px;touch-action:pan-y}
@@ -130,6 +132,7 @@ button.big2{background:transparent}
  <div id="warn" class="hide">Jsi mimo Polňák – domy tady nepočítáme</div>
  <div id="prompt" class="hide"><span id="promptT"></span><div class="bar"><i id="promptBar"></i></div></div>
  <div id="splat"></div>
+ <div id="binHint" class="hide"></div>
  <div id="toast"></div>
  <div id="bubbles"></div>
  <div id="touch" class="hide">
@@ -138,6 +141,7 @@ button.big2{background:transparent}
   <button class="tbtn" id="tHit" type="button">Udeřit</button>
   <button class="tbtn" id="tRun" type="button">Běh</button>
   <button class="tbtn" id="tScare" type="button">Strašit</button>
+  <button class="tbtn hide" id="tBin" type="button">Popelnice</button>
  </div>
 </div>
 
@@ -151,8 +155,8 @@ button.big2{background:transparent}
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Hrát sám</button>
-  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>myš (tažení)</b> otáčení kamery</div>
-  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>. Hraje se na šířku.</div>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert). Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <div class="links one" id="menuLinks"><a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a><a class="big2" href="../index.html">← Zpět na web</a></div>
  </div>
