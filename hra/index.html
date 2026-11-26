@@ -29,6 +29,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 #prompt .bar i{display:block;height:100%;width:0;background:#ffd166}
 #splat{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.85) 0,rgba(255,255,255,.55) 18%,rgba(255,255,255,0) 45%);opacity:0;transition:opacity .6s}
 .bub{position:fixed;transform:translate(-50%,-100%);background:#fff;color:#111;padding:4px 9px;border-radius:10px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none}
+.bub.long{white-space:normal;max-width:240px;text-align:center;line-height:1.25}
+#otz{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 112px);transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:min(560px,70vw);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.35);padding:8px 10px;border-radius:10px;z-index:5}
+#otz .ot{width:100%;text-align:center;font-size:13px;opacity:.85}
+#otz button{font:inherit;font-size:14px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+#otz button:disabled{opacity:.4;cursor:default}
+#otz #otzN{background:#ffd166;color:#111;border-color:#ffd166;font-weight:700}
 .bub::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
 #topBtns{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 160px);display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .sbtn{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.35);border-radius:8px;min-height:36px;padding:0 12px;font-size:13px}
@@ -150,6 +156,7 @@ button.big2{background:transparent}
  <div id="staminaW"><div id="stamina"></div></div>
  <div id="warn" class="hide">Jsi mimo Polňák – domy tady nepočítáme</div>
  <div id="prompt" class="hide"><span id="promptT"></span><div class="bar"><i id="promptBar"></i></div></div>
+ <div id="otz" class="hide"><div class="ot">Mikuláš se ptá dětí</div><button type="button" data-q="0">1 · Umíš se modlit?</button><button type="button" data-q="1">2 · Poslouchal jsi?</button><button type="button" data-q="2">3 · Jakou máme adventní neděli?</button><button type="button" id="otzN" class="hide">Q · Dát nadílku</button></div>
  <div id="splat"></div>
  <div id="binHint" class="hide"></div>
  <div id="koloHint" class="hide"></div>
@@ -188,7 +195,7 @@ button.big2{background:transparent}
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Hrát</button>
-  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu (napalovač: zazvonit čertovi / ukrást nadílku Mikulášovi) · <b>Mezerník</b> napalovač: držet = mířit, pustit = hodit · <b>F</b> popelnice (čert) · <b>B</b> kolo / vlečka traktoru (čert) · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu (napalovač: zazvonit čertovi / ukrást nadílku Mikulášovi) · <b>Mezerník</b> napalovač: držet = mířit, pustit = koule; Mikuláš: bonbon (+2) · <b>1–3</b> Mikuláš u domu: otázka dětem, pak <b>Q</b> nadílka · <b>F</b> popelnice (čert) · <b>B</b> kolo / vlečka traktoru (čert) · <b>myš (tažení)</b> otáčení kamery</div>
   <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>, u vlečky traktoru <b>Vlečka</b> (čert). Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <button class="big2" id="spBack" type="button">← Zpět do menu</button>

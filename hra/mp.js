@@ -77,7 +77,9 @@ function onMsg(m){
     for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
     for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}
     for(const pid of m.n||[]){const n=entBy(pid);if(n&&n.nap&&Math.hypot(n.pos.x-e.pos.x,n.pos.z-e.pos.z)<R.dosah+2.5)hitNap(e,n)}}break;
-  case 'nb':if(inGame){const e=entBy(m.from);if(e)addNball(e,m.x,m.y,m.z,m.vx,m.vy,m.vz)}break;
+  case 'nb':if(inGame){const e=entBy(m.from);if(e)addNball(e,m.x,m.y,m.z,m.vx,m.vy,m.vz,m.c)}break;
+  case 'bbhit':if(inGame&&NET.host){const by=entBy(m.by),v=entBy(m.from);if(by&&v&&v.nap)candyHit(by,v)}break;
+  case 'otz':if(inGame){const e=entBy(m.from);if(!e||e.role!=='mikulas'||m.ri!==ri)break;if(m.a==='q')otzDo(e,m.q,m.r);else if(m.a==='n')otzGiveDo(e)}break;
   case 'nbhit':if(inGame&&NET.host){const by=entBy(m.by),v=entBy(m.from);if(by&&v)napHit(by,v)}break;
   case 'nap':if(inGame&&NET.host){const e=entBy(m.from);if(e&&e.nap)doNap(e,m.a,ents[m.ti])}break;
   case 'bin':if(inGame)onBin(m,entBy(m.from));break;
@@ -170,7 +172,7 @@ function onPts(m){const b=m.b;if(b)NET.board[m.pid]=b;if(m.pid===NET.me){if(b)my
 
 /* ---------- snímek stavu od hostitele ---------- */
 const ST=['follow','chase','hold','return'];
-function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:0,gt:r1(grp.t),me:myState(),
+function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:0,gt:r1(grp.t),au:grp.auto?1:0,wt:r1(grp.wt||0),me:myState(),
     e:ents.map(e=>e.human?0:[r2(e.pos.x),r2(e.pos.z),r2(e.face),r1(e.spd||0),e.running?1:0,e.atkN,0,Math.max(0,ST.indexOf(e.st))]),
     dg:dogsSnap(),tr:tractorsSnap(),
     k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='flee'?1:0]),
@@ -179,7 +181,7 @@ function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:
 let carSeq=0;
 function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.length-1);
   if(m.ri!==ri){for(let i=ri;i<m.ri&&i<route.length;i++)route[i].with=i===m.ri-1&&Math.hypot(player.pos.x-route[i].b.cx,player.pos.z-route[i].b.cz)<18;ri=m.ri;updMarks()}
-  grp.phase=m.ph?'visit':'walk';grp.t=m.gt;const o=route[ri];if(o){grp.house=o.b;grp.door=o.d}
+  grp.phase=m.ph?'visit':'walk';grp.t=m.gt;grp.auto=!!m.au;grp.wt=m.wt||0;const o=route[ri];if(o){grp.house=o.b;grp.door=o.d}
   const H=entBy(m.from);if(H&&!H.isPlayer)setTarget(H,m.me);
   m.e.forEach((a,i)=>{const e=ents[i];if(!a||!e||e.human)return;setTarget(e,a);e.st=ST[a[7]]||'follow'});
   while(kids.length<m.k.length){const k=newKid(kids.length);kids.push(k)}
