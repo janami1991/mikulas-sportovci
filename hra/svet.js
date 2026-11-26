@@ -289,6 +289,7 @@ function obyvDef(b){if(!b.adr||GARAGE.includes(b.t)||b.t==='barn')return {m:0,z:
 /* pes u domu a popelnice u domu: z editoru (ov.pes / ov.pop = 1 ano, 0 ne), jinak náhodně podle domu */
 function bydli(b){return !!b.adr&&!GARAGE.includes(b.t)&&b.t!=='barn'}
 function pes(b){const v=b.ov&&b.ov.pes;if(v!==undefined&&v!=='')return !!+v;return bydli(b)&&hash(b.i*7+3)<.22}
+function kolo(b){const v=b.ov&&b.ov.kolo;if(v!==undefined&&v!=='')return !!+v;return bydli(b)&&hash(b.i*13+7)<.15}
 function popel(b){const v=b.ov&&b.ov.pop;if(v!==undefined&&v!=='')return !!+v;return bydli(b)&&hash(b.i*11+5)<.6}
 function obyv(b){const o=b.ov&&b.ov.ob;if(!o)return obyvDef(b);const c=v=>Math.max(0,Math.min(9,Math.round(+v||0)));return {m:c(o.m),z:c(o.z),h:c(o.h),k:c(o.k)}}
 
@@ -496,7 +497,7 @@ const OBJ_KINDS={
   kvadr:{n:'Kvádr',w:2,h:2,d:2,c:'#b9b2a6'},valec:{n:'Válec',w:1,h:2,c:'#9aa0a8'},
   strom_j:{n:'Jehličnatý strom',h:9},strom_l:{n:'Listnatý strom',h:8},ker:{n:'Keř',s:1.5},
   lavicka:{n:'Lavička',c:'#7a5233'},snehulak:{n:'Sněhulák',s:1},auto:{n:'Zaparkované auto',c:'#2b2f36'},
-  popelnice:{n:'Popelnice',c:'#3c5a3c'},lampa:{n:'Lampa'},kriz:{n:'Kříž',h:3,c:'#d8d4cc'},drevo:{n:'Hranice dřeva',w:2.5,h:1.2},
+  popelnice:{n:'Popelnice',c:'#202020'},lampa:{n:'Lampa'},kriz:{n:'Kříž',h:3,c:'#d8d4cc'},drevo:{n:'Hranice dřeva',w:2.5,h:1.2},
   branka:{n:'Branka / vrata',w:1.2,h:1.3,c:'#7a5a3a'},kaplicka:{n:'Kaplička',c:'#efe8dc'},model:{n:'Vlastní model (.obj)',s:3,c:'#c8c8c8'}};
 const FENCE_ST={latky:'Laťkový (dřevěný)',prkna:'Prkenný',pletivo:'Pletivo',zed:'Zděný / zeď',zivy:'Živý plot'};
 const objOpt=(o,k)=>o[k]!==undefined&&o[k]!==''?o[k]:OBJ_KINDS[o.k][k];
@@ -545,7 +546,7 @@ function objMesh(o){const g=new THREE.Group(),gb=GB(),glass={p:[]},k=o.k,c=o.c||
     gbPrim(L,'cone',0,1.43*s,.24*s,.07*s,.25*s,.07*s,0,Math.PI/2,0xe07a1f);gbPrim(L,'cyl',0,1.72*s,0,.3*s,.3*s,.3*s,0,0,0x7a4a2a);
     for(const xx of[-.07,.07])gbPrim(L,'sph',xx*s,1.5*s,.18*s,.05*s,.05*s,.05*s,0,0,0x111111)}
   else if(k==='auto'){const car=makeCar(new THREE.Color(c).getHex(),true);g.add(car)}
-  else if(k==='popelnice'){gbPrim(L,'box',0,.5,0,.6,1,.7,0,0,c);gbPrim(L,'box',0,1.04,-.02,.64,.08,.76,0,0,0xf2f6fb);for(const xx of[-.25,.25])gbPrim(L,'cyl',xx,.1,-.35,.2,.1,.2,0,0,0x111111,Math.PI/2)}
+  else if(k==='popelnice'){/* klasická plastová 120 l */gbPrim(L,'box',0,.5,0,.5,.9,.58,0,0,c);gbPrim(L,'box',0,.97,.02,.54,.05,.66,0,0,c);gbPrim(L,'box',0,.9,.31,.5,.08,.04,0,0,c);gbPrim(L,'cyl',0,.98,-.32,.04,.46,.04,0,0,0x151515,Math.PI/2);for(const xx of[-.21,.21])gbPrim(L,'cyl',xx,.1,-.27,.2,.06,.2,0,0,0x0c0c0c,Math.PI/2)}
   else if(k==='lampa'){gbPrim(L,'cyl6',0,2.5,0,.14,5,.14,0,0,0x2b2f38);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:0xffd08a,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false}));sp.scale.set(3,3,1);sp.position.y=5.05;g.add(sp);
     const hm=new THREE.Mesh(new THREE.SphereGeometry(.28,8,6),new THREE.MeshBasicMaterial({color:0xffe2a8}));hm.position.y=5.05;g.add(hm)}
   else if(k==='kriz'){gbPrim(L,'box',0,.3,0,.7,.6,.7,0,0,0x9a958c);gbPrim(L,'box',0,.6+h/2,0,.14,h,.14,0,0,c);gbPrim(L,'box',0,.6+h*.72,0,1,.13,.14,0,0,c)}

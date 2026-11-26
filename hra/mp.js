@@ -24,7 +24,7 @@ NET.endGame=reason=>{NET.send({t:'end',reason,board:NET.board});showEnd(reason)}
 NET.leave=msg=>{const was=NET.on&&state==='play';disconnect();if(was)showEnd('left',msg);else showScreen('menu')};
 
 /* ---------- obrazovky ---------- */
-function showScreen(id){for(const s of['menu','mp','end'])$(s).classList.toggle('hide',s!==id);if(id!=='end')$('ui').classList.add('hide')}
+function showScreen(id){for(const s of['menu','mp','end','zebS'])$(s).classList.toggle('hide',s!==id);if(id!=='end')$('ui').classList.add('hide')}
 function mpMsg(t){$('mpMsg').textContent=t||''}
 /* červená hláška pod tlačítkem „Vyjít na stranu“ */
 let errT=0;function mpErr(t,hl){const e=$('mpErr');e.textContent=t||'';e.classList.toggle('hide',!t);clearTimeout(errT);
@@ -76,6 +76,7 @@ function onMsg(m){
     for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
     for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}}break;
   case 'bin':if(inGame)onBin(m,entBy(m.from));break;
+  case 'kolo':if(inGame)onKolo(m,entBy(m.from));break;
   case 'scare':if(inGame&&NET.host){const e=entBy(m.from);if(e)doScare(e)}break;
   case 'join':if(inGame&&NET.host)hostJoin(m.from);break;
   }}
@@ -166,7 +167,7 @@ function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:
     dg:dogsSnap(),
     k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='flee'?1:0]),
     c:cars.map(c=>{if(!c.id)c.id=++carSeq;return [c.id,r2(c.pos.x),r2(c.pos.z),r2(c.face),r1(c.spd)]})};
-  if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0){s.b=NET.board;s.bn=binsSnap()}return s}
+  if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0){s.b=NET.board;s.bn=binsSnap();s.bk=bikesSnap()}return s}
 let carSeq=0;
 function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.length-1);
   if(m.ri!==ri){for(let i=ri;i<m.ri&&i<route.length;i++)route[i].with=i===m.ri-1&&Math.hypot(player.pos.x-route[i].b.cx,player.pos.z-route[i].b.cz)<18;ri=m.ri;updMarks()}
@@ -176,7 +177,7 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
   while(kids.length<m.k.length){const k=newKid(kids.length);kids.push(k)}
   while(kids.length>m.k.length){const k=kids.pop();scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}
   m.k.forEach((a,i)=>{const k=kids[i];if(k.tx===undefined){k.pos.x=a[0];k.pos.z=a[1]}k.tx=a[0];k.tz=a[1];k.tf=a[2];if(k.code!==a[3]){if(a[3]===2)k.t=0;k.code=a[3]}});
-  if(m.dg)dogsApply(m.dg);if(m.bn)binsApply(m.bn);
+  if(m.dg)dogsApply(m.dg);if(m.bn)binsApply(m.bn);if(m.bk)bikesApply(m.bk);
   const seen=new Set();
   for(const a of m.c){seen.add(a[0]);let c=cars.find(x=>x.id===a[0]);if(!c){const mesh=makeCar();scene.add(mesh);c={id:a[0],mesh,pos:new THREE.Vector3(a[1],0,a[2]),face:a[3],spd:a[4],honk:0};cars.push(c)}c.tx=a[1];c.tz=a[2];c.tf=a[3];c.spd=a[4]}
   for(let i=cars.length-1;i>=0;i--)if(!seen.has(cars[i].id)){scene.remove(cars[i].mesh);cars.splice(i,1)}
@@ -247,7 +248,7 @@ function showEnd(reason,msg,board){if(board)NET.board=board;const b=NET.board[NE
   const rs=rows(NET.board);
   $('endRes').innerHTML=rs.map((r,i)=>`<span class="${r.id===NET.me?'me':''}">${i+1}. ${esc(r.n)} · ${ROLE_N[r.r]||''}${r.left?' (odešel)':''}</span><b class="${r.id===NET.me?'me':''}">${r.score}</b>`).join('')+
     (b?`<span class="tot">Tvoje body: domy ${b.houses} · strašení ${b.scareP} · chycení ${b.caught} · psi ${b.psi||0}${b.penalty?` · pokuta −${b.penalty}`:''}</span><b class="tot">${b.score}</b>`:'');
-  $('endBest').textContent='';$('bMenu').classList.remove('hide');$('bAgain').textContent=open()?'Zpět do místnosti':'Hrát znovu'}
+  $('endBest').textContent='';if(b)zebEnd({s:b.score,h:b.houses,c:b.caught,p:b.psi||0,r:b.r||myRole,mp:true},$('mpName').value.trim());$('bMenu').classList.remove('hide');$('bAgain').textContent=open()?'Zpět do místnosti':'Hrát znovu'}
 
 /* ---------- nečinnost a skrytá karta ---------- */
 const act=()=>{lastAct=performance.now()};

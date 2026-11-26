@@ -4,7 +4,7 @@ import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/12.
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updatePassword,
   reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, writeBatch,
-  arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
+  arrayUnion, arrayRemove, addDoc, orderBy, limit, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
 import CFG from './firebase-config.js';
 
 export const configured = !!(CFG && CFG.apiKey && !/DOPLNIT/.test(CFG.apiKey));
@@ -144,3 +144,11 @@ export async function saveMapa(json, t) {
   b.set(doc(db, 'mapa', 'meta'), { n, t, by: ME ? ME.jmeno : '' });
   await b.commit()
 }
+
+/* ===== žebříček hry: čte každý, zapíše kdokoliv (pravidla hlídají tvar záznamu), maže správce ===== */
+export async function addScore(z) { const r = await addDoc(collection(db, 'zebricek'), { ...z, ts: serverTimestamp() }); return r.id }
+export async function topScores(n) {
+  const q = query(collection(db, 'zebricek'), orderBy('s', 'desc'), limit(n || 10));
+  return (await getDocs(q)).docs.map(d => { const x = d.data(); return { id: d.id, ...x, ts: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 } })
+}
+export const delScore = id => deleteDoc(doc(db, 'zebricek', id));

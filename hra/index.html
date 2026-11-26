@@ -99,6 +99,15 @@ button.big2{background:transparent}
 .row{display:grid;grid-template-columns:1fr auto;gap:8px}
 .row .big2{padding:0 22px}
 #mpRoomCode{font-size:22px;letter-spacing:.12em}
+.zeb{display:grid;grid-template-columns:auto 1fr auto auto;gap:4px 12px;font-size:15px;align-items:baseline}
+.zeb .h{font-size:12px;color:#a0a0a0}
+.zeb .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zeb .r{font-size:12px;color:#a0a0a0}
+.zeb b{text-align:right}
+.zeb .me{text-decoration:underline}
+#zebMsg{font-size:13px;color:#cfcfcf;min-height:1em}
+#tKolo{width:66px;height:66px;right:calc(max(18px,env(safe-area-inset-right)) + 186px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 100px);font-size:13px}
+#koloHint{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 140px);transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:8px;font-size:14px;pointer-events:none}
 .tag{position:fixed;transform:translate(-50%,-100%);color:#fff;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
 #board{position:fixed;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 42px);background:rgba(0,0,0,.42);border-radius:8px;padding:5px 9px;font-size:12px;line-height:1.5;pointer-events:auto;cursor:pointer;min-width:130px;max-width:40vw;user-select:none}
 #board h4{margin:0 0 2px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.65;display:flex;justify-content:space-between}
@@ -133,6 +142,7 @@ button.big2{background:transparent}
  <div id="prompt" class="hide"><span id="promptT"></span><div class="bar"><i id="promptBar"></i></div></div>
  <div id="splat"></div>
  <div id="binHint" class="hide"></div>
+ <div id="koloHint" class="hide"></div>
  <div id="toast"></div>
  <div id="bubbles"></div>
  <div id="touch" class="hide">
@@ -142,6 +152,7 @@ button.big2{background:transparent}
   <button class="tbtn" id="tRun" type="button">Běh</button>
   <button class="tbtn" id="tScare" type="button">Strašit</button>
   <button class="tbtn hide" id="tBin" type="button">Popelnice</button>
+  <button class="tbtn hide" id="tKolo" type="button">Kolo</button>
  </div>
 </div>
 
@@ -155,10 +166,20 @@ button.big2{background:transparent}
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Hrát sám</button>
-  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>myš (tažení)</b> otáčení kamery</div>
-  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert). Hraje se na šířku.</div>
+  <button class="big2" id="bZeb" type="button">Žebříček nejlepších</button>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>B</b> kolo · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>. Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <div class="links one" id="menuLinks"><a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a><a class="big2" href="../index.html">← Zpět na web</a></div>
+ </div>
+</div>
+
+<div class="screen hide" id="zebS">
+ <div class="card">
+  <h1>Žebříček</h1>
+  <p>Nejlepší výsledky obchůzky (sám i s ostatními).</p>
+  <div class="zeb" id="zebList">Načítám…</div>
+  <button class="big2" id="zebBack" type="button">← Zpět do menu</button>
  </div>
 </div>
 
@@ -197,6 +218,8 @@ button.big2{background:transparent}
   <h1 id="endT">Obchůzka skončila</h1>
   <div class="res" id="endRes"></div>
   <div class="keys" id="endBest"></div>
+  <div id="zebW" class="hide"><div class="lbl">Zapsat se do žebříčku</div><div class="row"><input class="inp" id="zebName" maxlength="20" autocomplete="nickname" placeholder="Přezdívka"><button class="big2" id="zebSave" type="button">Zapsat</button></div><div id="zebMsg"></div></div>
+  <div class="zeb" id="zebEnd"></div>
   <button class="big" id="bAgain" type="button">Hrát znovu</button>
   <div class="links"><button class="big2" id="bMenu" type="button">Hlavní menu</button><a class="big2" href="../index.html">← Zpět na web</a></div>
  </div>
@@ -212,7 +235,7 @@ button.big2{background:transparent}
 /* úpravy mapy uložené v editoru (databáze); když databáze nejde, zůstane soubor upravy.js */
 const load=s=>new Promise((ok,ko)=>{const e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=ko;document.body.appendChild(e)});
 let db=null;
-try{db=await import('../db.js');
+try{db=await import('../db.js');window.DB=db;
   if(db.configured){const m=await Promise.race([db.loadMapa(),new Promise(r=>setTimeout(()=>r(null),8000))]);
     if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}

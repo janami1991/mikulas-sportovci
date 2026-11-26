@@ -326,14 +326,14 @@ function spTeam(){const cv=[1,2,3,4,5].filter(v=>!(selChar==='cert'&&v===selVar)
 function resetGame(team){
   for(const e of ents)scene.remove(e.mesh);for(const k of kids){scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}for(const b of balls)scene.remove(b.m);
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(6,12);
-  clearRes();clearBins();ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;dogsN=0;timeLeft=CFG.limit;ri=0;
+  clearRes();clearBins();clearBikes();ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;dogsN=0;timeLeft=CFG.limit;ri=0;
   const s=M.start||[0,0];player=null;
   /* čerti v družině mají každý jiný vzhled; hráč-čert ten, který si vybral */
   team=team||spTeam();
   team.forEach((t,i)=>{const e=addEnt(t,i,team.length);if(t.x===undefined){const a=i/team.length*Math.PI*2;e.pos.set(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(e.pos,.45)}});
   if(!player)player=ents[0];
   player.face=Math.PI;cam.yaw=Math.PI;cam.cur=undefined;
-  route=makeRoute(s[0],s[1]);setMarks();planTo(0);makeDogs();makeBins();
+  route=makeRoute(s[0],s[1]);setMarks();planTo(0);makeDogs();makeBins();makeBikes();
   if(isHost()){const n=CFG.napalovacu+(NET.on?Math.floor((humans().length-1)*.77):0);for(let i=0;i<n;i++)kids.push(newKid(i))}
   $('hHousesT').textContent=route.length;$('tScare').textContent=ROLE[player.role].akce;updHud();
 }
@@ -345,7 +345,7 @@ function addEnt(t,i){const me=NET.on?NET.me:'me',isP=t.pid!=null&&t.pid===me;con
 /* ===================== OVLÁDÁNÍ ===================== */
 const keys=new Set();
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys.add(k);if(state!=='play')return;
-  if(k===' '||k==='j'){e.preventDefault();if(player.carry)binKey();else attack(player)}if(k==='f')binKey();if(k==='q'||k==='e')scare();if(k==='r'){setAuto(!autoRun);toast(autoRun?'Automatický běh (R nebo S = stop)':'Automatický běh vypnut',1200)}if(k==='s'||k==='arrowdown')setAuto(false);if(k==='escape'||k==='p')pause(true)});
+  if(k===' '||k==='j'){e.preventDefault();offBike();if(player.carry)binKey();else attack(player)}if(k==='f'){offBike();binKey()}if(k==='b')bikeKey();if(k==='q'||k==='e'){offBike();scare()}if(k==='r'){setAuto(!autoRun);toast(autoRun?'Automatický běh (R nebo S = stop)':'Automatický běh vypnut',1200)}if(k==='s'||k==='arrowdown')setAuto(false);if(k==='escape'||k==='p')pause(true)});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 const joy={id:null,x:0,y:0,dx:0,dy:0,run:false,lock:false},look={id:null,x:0,y:0};let runHeld=false,autoRun=false;
 function setAuto(on){autoRun=on;$('autoRun').classList.toggle('hide',!on)}
@@ -365,8 +365,8 @@ canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercanc
 canvas.addEventListener('wheel',e=>{cam.dist=clamp(cam.dist+e.deltaY*0.01,4,14)},{passive:true});
 const tb=(id,down,up)=>{const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();b.classList.add('on');down()});
   const u=e=>{b.classList.remove('on');up&&up()};b.addEventListener('pointerup',u);b.addEventListener('pointercancel',u);b.addEventListener('pointerleave',u)};
-tb('tHit',()=>{if(player.carry)binKey();else attack(player)});tb('tBin',()=>binKey());tb('tRun',()=>{runHeld=true;setAuto(false)},()=>runHeld=false);
-$('autoRun').addEventListener('pointerdown',e=>{e.preventDefault();setAuto(false)});tb('tScare',()=>scare());
+tb('tHit',()=>{offBike();if(player.carry)binKey();else attack(player)});tb('tBin',()=>{offBike();binKey()});tb('tKolo',()=>bikeKey());tb('tRun',()=>{runHeld=true;setAuto(false)},()=>runHeld=false);
+$('autoRun').addEventListener('pointerdown',e=>{e.preventDefault();setAuto(false)});tb('tScare',()=>{offBike();scare()});
 addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ===================== ÚDER (pro hráče i počítač) ===================== */
@@ -551,7 +551,7 @@ function update(dt){
   const wantRun=(keys.has('shift')||runHeld||autoRun||(joy.id!==null&&joy.run))&&il>0.2;
   if(P.stamina<=0)P.tired=true;if(P.tired&&P.stamina>30)P.tired=false;
   const running=wantRun&&!P.tired&&!P.carry;P.running=running;
-  if(P.slow>0)P.slow-=dt;const spd=(running?R.beh:R.chuze)*il*(P.attack>0?.35:1)*(P.slow>0?.5:1);
+  if(P.slow>0)P.slow-=dt;const spd=(P.bike?(running?2*R.beh:R.beh):(running?R.beh:R.chuze))*il*(P.attack>0?.35:1)*(P.slow>0?.5:1);
   P.stamina=clamp(P.stamina+(running?-R.drain:il>0.1?9:15)*dt,0,100);
   if(il>0.05){const sy=Math.sin(cam.yaw),cy=Math.cos(cam.yaw);const fx=-sy*(-iz)+cy*ix,fz=-cy*(-iz)-sy*ix;
     const Lq=Math.hypot(fx,fz)||1;P.pos.x+=fx/Lq*spd*dt;P.pos.z+=fz/Lq*spd*dt;
@@ -570,7 +570,7 @@ function update(dt){
   ents.forEach((e,k)=>updMember(e,k,dt))}
   ents.forEach(e=>placeEnt(e,dt));
   if(isHost())for(const g of dogs)updDog(g,dt);else for(const g of dogs)viewDog(g,dt);
-  updBins(dt);
+  updBins(dt);updBikes(dt);
   updRes(dt);
   for(let i=puffs.length-1;i>=0;i--){const p=puffs[i];p.t-=dt;p.v.y-=9*dt;p.m.position.addScaledVector(p.v,dt);p.m.scale.setScalar(Math.max(.1,p.t/.7));if(p.t<=0||p.m.position.y<p.g){scene.remove(p.m);puffs.splice(i,1)}}
   /* ukazatele */
@@ -664,7 +664,9 @@ function houseSpots(b){if(dogInfo.has(b.id))return dogInfo.get(b.id);const d=doo
   for(const s of[1,-1]){for(const off of[1.8,2.5,1.4]){const p=at(s,off,.75);if(ok(p[0],p[1],.35)){bin=p;side=s;break}}if(bin)break}
   for(const off of[2.2,3,1.6]){const p=at(-side,off,1.8);if(ok(p[0],p[1],.4)){dog=p;break}}
   if(!dog){const p=[d.x+E.nx*1.2,d.z+E.nz*1.2];if(ok(p[0],p[1],.4))dog=p}
-  const o={door:[d.x,d.z],bin,dog,face:Math.atan2(E.nx,E.nz)};dogInfo.set(b.id,o);return o}
+  let bike=null,bface=Math.atan2(ux,uz);const far=(p,q)=>!q||Math.hypot(p[0]-q[0],p[1]-q[1])>1.2;
+  for(const s of[side,-side]){for(const off of[3.4,4.2,2.8,5]){const p=at(s,off,1);if(ok(p[0],p[1],.55)&&far(p,bin)&&far(p,dog)){bike=p;break}}if(bike)break}
+  const o={door:[d.x,d.z],bin,dog,bike,bface,face:Math.atan2(E.nx,E.nz)};dogInfo.set(b.id,o);return o}
 function clearDogs(){for(const g of dogs){scene.remove(g.mesh);g.bub.remove()}dogs.length=0}
 function makeDogs(){clearDogs();B.forEach(b=>{if(!pes(b))return;const s=houseSpots(b);if(!s.dog)return;const m=makeDog(b.i);scene.add(m);
   const bub=document.createElement('div');bub.className='bub hide';$('bubbles').appendChild(bub);
@@ -718,9 +720,14 @@ function dogsHost(){for(const g of dogs){g.st=DOGST[g.code||0];g.fl=0;g.cd=1;g.h
 /* u domů (z editoru nebo náhodně) a popelnice postavené v editoru; čert ji zvedne (F / tlačítko), hodí ji (F / Udeřit) – zásah = 2 rány čerta */
 const BIN={reach:1.7,max:12,g:9.8};
 const bins=[];
-function makeBinMesh(c){const g=new THREE.Group(),col=lam(c||0x3c5a3c),inner=new THREE.Group();g.add(inner);
-  inner.add(box(.6,1,.7,col,0,.5,0),box(.64,.08,.76,lam(0xf2f6fb),0,1.04,-.02));
-  for(const x of[-.25,.25]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.08,10),lam(0x111111));w.rotation.z=Math.PI/2;w.position.set(x,.1,-.35);inner.add(w)}
+/* klasická černá plastová popelnice 120 l: dole užší, víko s přesahem a závěsem vzadu, madlo a dvě kolečka vzadu */
+function makeBinMesh(c){const g=new THREE.Group(),col=new THREE.MeshLambertMaterial({color:c||0x202020}),dk=lam(0x0d0d0d),inner=new THREE.Group();g.add(inner);
+  const bg=new THREE.BoxGeometry(.5,.9,.58),pa=bg.attributes.position;for(let i=0;i<pa.count;i++)if(pa.getY(i)<0){pa.setX(i,pa.getX(i)*.84);pa.setZ(i,pa.getZ(i)*.86)}bg.computeVertexNormals();
+  const body=new THREE.Mesh(bg,col);body.position.y=.5;inner.add(body);
+  inner.add(box(.54,.05,.66,col,0,.97,.02),box(.5,.08,.04,col,0,.9,.31),box(.44,.02,.02,dk,0,.75,.3),box(.44,.02,.02,dk,0,.55,.27));
+  const h=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.46,8),dk);h.rotation.z=Math.PI/2;h.position.set(0,.98,-.33);inner.add(h,box(.04,.12,.05,col,-.2,.92,-.31),box(.04,.12,.05,col,.2,.92,-.31));
+  for(const x of[-.21,.21]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.06,12),dk);w.rotation.z=Math.PI/2;w.position.set(x,.1,-.27);inner.add(w)}
+  const ax=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.48,6),dk);ax.rotation.z=Math.PI/2;ax.position.set(0,.1,-.27);inner.add(ax);
   g.userData.inner=inner;return g}
 function clearBins(){for(const b of bins)scene.remove(b.mesh);bins.length=0;if(player)player.carry=null}
 function addBin(x,z,face,c,oid){const m=makeBinMesh(c);scene.add(m);const b={i:bins.length,mesh:m,pos:new THREE.Vector3(x,0,z),face,st:'idle',by:null,v:new THREE.Vector3(),spin:0,hit:new Set(),oid};bins.push(b);placeBin(b);return b}
@@ -729,12 +736,12 @@ function makeBins(){clearBins();
   /* popelnice z editoru: ve hře se dají hodit (pevná kopie se skryje i s kolizí) */
   for(const o of UPR.o){if(o.k!=='popelnice')continue;const m=objMeshes.get(o.id);if(m)m.visible=false;
     const cl=CIRC.get(Math.floor(o.x/WC)+','+Math.floor(o.z/WC));if(cl){const j=cl.findIndex(q=>q[0]===o.x&&q[1]===o.z);if(j>=0)cl.splice(j,1)}
-    addBin(o.x,o.z,(+o.rot||0)*Math.PI/180,o.c?new THREE.Color(o.c).getHex():0x3c5a3c,o.id)}}
+    addBin(o.x,o.z,(+o.rot||0)*Math.PI/180,o.c&&o.c!=='#3c5a3c'?new THREE.Color(o.c).getHex():0x202020,o.id)}}
 function placeBin(b){const m=b.mesh,inn=m.userData.inner;
   if(b.st==='carry'&&b.by){const e=b.by;m.position.set(e.pos.x+Math.sin(e.face)*.1,e.pos.y+2.2,e.pos.z+Math.cos(e.face)*.1);m.rotation.set(0,e.face,0);inn.rotation.set(Math.PI/2,0,0);inn.position.set(0,0,-.5)}
   else if(b.st==='fly'){m.position.copy(b.pos);m.rotation.set(0,b.face,0);inn.rotation.set(b.spin,0,0);inn.position.set(0,-.5,0);inn.position.applyAxisAngle(new THREE.Vector3(1,0,0),b.spin);inn.position.y+=.5}
   else{b.pos.y=groundH(b.pos.x,b.pos.z);m.position.copy(b.pos);m.rotation.set(0,b.face,0);
-    if(b.st==='lie'){inn.rotation.set(Math.PI/2,0,0);inn.position.set(0,.36,-.5)}else{inn.rotation.set(0,0,0);inn.position.set(0,0,0)}}}
+    if(b.st==='lie'){inn.rotation.set(Math.PI/2,0,0);inn.position.set(0,.3,-.48)}else{inn.rotation.set(0,0,0);inn.position.set(0,0,0)}}}
 const canBin=e=>e&&e.role==='cert';
 function nearBin(e){let best=null,bd=BIN.reach;for(const b of bins){if(b.st!=='idle'&&b.st!=='lie')continue;const d=Math.hypot(b.pos.x-e.pos.x,b.pos.z-e.pos.z);if(d<bd){bd=d;best=b}}return best}
 function pickBin(e,b){b.st='carry';b.by=e;e.carry=b;b.hit.clear()}
@@ -771,6 +778,55 @@ function updBins(dt){
   /* tlačítko na dotyku */
   const P=player,show=canBin(P)&&(!!P.carry||!!nearBin(P));const tb=$('tBin');if(tb){tb.classList.toggle('hide',!show||!isTouch);tb.innerHTML=P.carry?'Hodit':'Popel&shy;nice'}
   const hint=$('binHint');if(hint){hint.classList.toggle('hide',!show||isTouch);hint.textContent=P.carry?'F nebo Mezerník: hodit popelnici':'F: zvednout popelnici'}}
+
+
+/* ===================== KOLA U DOMŮ (nasednout může kdokoliv) ===================== */
+/* pomalá jízda = rychlost běhu (výdrž se doplňuje jako při chůzi), rychlá jízda = 2× běh (ubírá výdrž jako běh) */
+const BIKE={reach:1.8,cols:[0xb3261e,0x1f4fa8,0x2e7d32,0x222222,0xe0e0e0,0x7b1fa2]};
+const bikes=[];
+function makeBikeMesh(c){const g=new THREE.Group(),fr=lam(c),blk=lam(0x111111),met=lam(0x9aa0a6);
+  const rod=(len,th,mat,x,y,z,rx)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(th,th,len,6),mat);m.position.set(x,y,z);m.rotation.x=rx||0;return m};
+  const wheel=z=>{const w=new THREE.Group();w.position.set(0,.34,z);const t=new THREE.Mesh(new THREE.TorusGeometry(.31,.035,6,18),blk);t.rotation.y=Math.PI/2;w.add(t);
+    for(let i=0;i<3;i++){const sp=rod(.6,.006,met,0,0,0,i*Math.PI/3);w.add(sp)}const hub=rod(.1,.03,met,0,0,0,0);hub.rotation.z=Math.PI/2;w.add(hub);return w};
+  const wf=wheel(.52),wr=wheel(-.5);g.add(wf,wr);
+  /* rám: horní a spodní trubka, sedlová trubka, zadní stavba, vidlice */
+  g.add(rod(.62,.025,fr,0,.82,.05,Math.PI/2+.08),rod(.72,.025,fr,0,.6,.06,Math.PI/2-.55),rod(.52,.025,fr,0,.62,-.18,-.25),
+    rod(.5,.02,fr,0,.38,-.32,Math.PI/2+.05),rod(.55,.02,fr,0,.58,-.36,-.95),rod(.6,.022,fr,0,.62,.45,.3));
+  g.add(box(.12,.04,.24,blk,0,.92,-.24));/* sedlo */
+  g.add(rod(.1,.015,met,0,.87,-.22,0));
+  const bar=rod(.5,.018,blk,0,1.02,.36,0);bar.rotation.z=Math.PI/2;g.add(bar,rod(.2,.018,met,0,.93,.39,.3));
+  const crank=new THREE.Group();crank.position.set(0,.36,0);crank.add(box(.04,.04,.34,met,.07,0,0),box(.04,.04,.34,met,-.07,0,0));const disc=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,.03,12),met);disc.rotation.z=Math.PI/2;disc.position.set(0,.36,0);g.add(crank,disc);
+  g.userData={wf,wr,crank};return g}
+function clearBikes(){for(const k of bikes)scene.remove(k.mesh);bikes.length=0;for(const e of ents)e.bike=null}
+function addBike(x,z,face,seed){const m=makeBikeMesh(BIKE.cols[seed%BIKE.cols.length]);scene.add(m);const k={i:bikes.length,mesh:m,pos:new THREE.Vector3(x,0,z),face,by:null,rot:0};bikes.push(k);placeBike(k,0);return k}
+function makeBikes(){clearBikes();B.forEach(b=>{if(!kolo(b))return;const s=houseSpots(b);if(s.bike)addBike(s.bike[0],s.bike[1],s.bface,b.i)})}
+function placeBike(k,dt){const m=k.mesh,u=m.userData;
+  if(k.by){const e=k.by;k.pos.copy(e.pos);k.face=e.face;k.rot+=(e.spd||0)*dt/.34;m.position.set(e.pos.x,groundH(e.pos.x,e.pos.z)+.02,e.pos.z);m.rotation.set(0,e.face,0)}
+  else{m.position.set(k.pos.x,groundH(k.pos.x,k.pos.z)+.02,k.pos.z);m.rotation.set(0,k.face,.1)}
+  u.wf.rotation.x=u.wr.rotation.x=k.rot;u.crank.rotation.x=k.rot*.6}
+function nearBike(e){let best=null,bd=BIKE.reach;for(const k of bikes){if(k.by)continue;const d=Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z);if(d<bd){bd=d;best=k}}return best}
+function mountBike(e,k){if(k.by&&k.by!==e)k.by.bike=null;k.by=e;e.bike=k;e.pos.x=k.pos.x;e.pos.z=k.pos.z;e.face=k.face}
+function dismountBike(e,x,z,f){const k=e.bike;if(!k)return;k.by=null;e.bike=null;
+  if(x===undefined){x=e.pos.x+Math.cos(e.face)*.7;z=e.pos.z-Math.sin(e.face)*.7;f=e.face}k.pos.set(x,0,z);k.face=f;placeBike(k,0)}
+/* klávesa B / tlačítko Kolo: nasednout nebo sesednout */
+function bikeKey(){const P=player;if(state!=='play'||!P)return;
+  if(P.bike){offBike();return}
+  if(P.carry){toast('Nejdřív hoď popelnici',900);return}
+  const k=nearBike(P);if(!k){toast('Žádné kolo poblíž',900);return}mountBike(P,k);NET.send({t:'kolo',a:'on',i:k.i});
+  toast('Jedeš na kole – Shift / Běh = rychle (bere sílu), B = sesednout',2000)}
+/* sesednutí hráče (volá se i před útokem, strašením a popelnicí) */
+function offBike(){const P=player;if(!P||!P.bike)return;const k=P.bike;dismountBike(P);NET.send({t:'kolo',a:'off',i:k.i,x:q2(k.pos.x),z:q2(k.pos.z),f:q2(k.face)})}
+function onKolo(m,e){const k=bikes[m.i];if(!k||!e)return;if(m.a==='on')mountBike(e,k);else if(m.a==='off'){if(e.bike===k)dismountBike(e,m.x,m.z,m.f);else{k.by=null;k.pos.set(m.x,0,m.z);k.face=m.f}}}
+function bikesSnap(){return bikes.map(k=>[q2(k.pos.x),q2(k.pos.z),q2(k.face)])}
+function bikesApply(a){a.forEach((q,i)=>{const k=bikes[i];if(!k||k.by)return;k.pos.x=q[0];k.pos.z=q[1];k.face=q[2]})}
+/* jezdec: sedí na sedle, šlape, ruce na řídítkách */
+function riderPose(e){const u=e.mesh.userData,k=e.bike;e.mesh.position.y+=.32;e.mesh.position.x-=Math.sin(e.face)*.12;e.mesh.position.z-=Math.cos(e.face)*.12;
+  const a=k.rot*.6;u.legL.rotation.x=-1.1+Math.sin(a)*.45;u.legR.rotation.x=-1.1-Math.sin(a)*.45;
+  if(!u.attack){u.armL.rotation.x=u.armR.rotation.x=-1.15;u.armL.rotation.z=-.12;u.armR.rotation.z=.12}}
+function updBikes(dt){for(const e of ents){if(e.bike&&e.bike.by!==e)e.bike=null;if(e.bike)riderPose(e)}
+  for(const k of bikes){if(k.by&&!ents.includes(k.by))k.by=null;placeBike(k,dt)}
+  const P=player,show=!!P&&(!!P.bike||!!nearBike(P)),tb=$('tKolo');if(tb){tb.classList.toggle('hide',!show||!isTouch);tb.textContent=P&&P.bike?'Sesed':'Kolo'}
+  const h=$('koloHint');if(h){h.classList.toggle('hide',!show||isTouch||!!(P&&P.carry));h.textContent=P&&P.bike?'Shift: rychlá jízda · B: sesednout':'B: nasednout na kolo'}}
 
 const projV=new THREE.Vector3();
 function placeBubbles(){for(const k of kids){if(k.bub.classList.contains('hide'))continue;projV.set(k.pos.x,2.05,k.pos.z).project(camera);
@@ -933,14 +989,35 @@ $('bPause').onclick=()=>pause(true);$('bResume').onclick=()=>pause(false);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause(true)});
 $('bEnd').onclick=()=>{if(NET.on)NET.leave('Odešel jsi ze hry.');else finish(false)};
 function gameOver(timeUp,done){if(NET.on&&NET.host){NET.endGame(timeUp?'time':done?'done':'stop');return}finish(timeUp,done)}
-function finish(timeUp,done){state='end';setAuto(false);$('bAgain').textContent='Hrát znovu';navArrow.visible=false;setMapBig(false);keys.clear();runHeld=false;$('ui').classList.add('hide');$('end').classList.remove('hide');
+function finish(timeUp,done){state='end';$('pause').classList.add('hide');setAuto(false);$('bAgain').textContent='Hrát znovu';navArrow.visible=false;setMapBig(false);keys.clear();runHeld=false;$('ui').classList.add('hide');$('end').classList.remove('hide');
   for(const k of kids)k.bub.classList.add('hide');for(const g of dogs)g.bub.classList.add('hide');
   $('endT').textContent=done?'Strana obejitá!':timeUp?'Čas vypršel':'Obchůzka skončila';
   const used=CFG.limit-Math.max(0,timeLeft),m=Math.floor(used/60),s=Math.floor(used%60);
   $('endRes').innerHTML=`<span>Postava</span><b>${ROLE[player.role].n}</b><span>Domy s družinou</span><b>${houses} / ${ri}</b><span>Body za strašení</span><b>${scareP}</b><span>Chycení napalovači</span><b>${caught}</b><span>Zahnaní psi</span><b>${dogsN}</b>`+
     (penalty?`<span>Pokuta (Mikuláš se pral)</span><b>−${penalty}</b>`:'')+`<span>Čas na straně</span><b>${m}:${String(s).padStart(2,'0')}</b><span class="tot">Body celkem</span><b class="tot">${score}</b>`;
   const best=store('obchuzka-rekord')||0;if(score>best){store('obchuzka-rekord',score);$('endBest').textContent='Nový rekord!'}else $('endBest').textContent=`Rekord: ${best} bodů`;
+  zebEnd({s:score,h:houses,c:caught,p:dogsN,r:player.role,mp:false});
   showBest($('best'))}
+
+/* ===================== ŽEBŘÍČEK (databáze, zapíše se kdokoliv s přezdívkou) ===================== */
+const ZEB={st:null,saved:null,busy:false};
+const zesc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const zebScr=id=>{for(const x of['menu','end','zebS'])$(x).classList.toggle('hide',x!==id);if($('mp'))$('mp').classList.add('hide')};
+const zebOn=()=>!!(window.DB&&DB.configured&&DB.topScores);
+const zebRow=(z,i,me)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span></span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
+async function zebLoad(el,n){if(!zebOn()){el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček teď není dostupný.</span>';return}
+  try{const L=await DB.topScores(n||10);el.innerHTML=L.length?`<span class="h"></span><span class="h">Hráč</span><span class="h"></span><span class="h" style="text-align:right">Body</span>`+L.map((z,i)=>zebRow(z,i,z.id===ZEB.saved)).join(''):'<span class="h" style="grid-column:1/-1">Zatím tu nikdo není – buď první!</span>'}
+  catch(e){console.warn(e);el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček se nenačetl.</span>'}}
+/* konec hry: nabídne zápis a ukáže prvních 10 */
+function zebEnd(st,name){ZEB.st=st;ZEB.saved=null;const ok=zebOn()&&st.s>0;$('zebW').classList.toggle('hide',!ok);$('zebMsg').textContent='';$('zebSave').disabled=false;
+  $('zebName').value=(name||store('obchuzka-jmeno')||'').slice(0,20);$('zebEnd').innerHTML='';if(zebOn())zebLoad($('zebEnd'),10)}
+$('zebSave').onclick=async()=>{if(ZEB.busy||!ZEB.st||ZEB.saved)return;const n=$('zebName').value.trim().replace(/\s+/g,' ').slice(0,20);
+  if(!n){$('zebMsg').textContent='Napiš přezdívku.';$('zebName').focus();return}store('obchuzka-jmeno',n);ZEB.busy=true;$('zebMsg').textContent='Zapisuji…';
+  try{ZEB.saved=await DB.addScore({n,r:ZEB.st.r,s:Math.round(ZEB.st.s),h:ZEB.st.h|0,c:ZEB.st.c|0,p:ZEB.st.p|0,mp:!!ZEB.st.mp});$('zebMsg').textContent='Zapsáno.';$('zebSave').disabled=true;$('zebW').classList.add('hide');zebLoad($('zebEnd'),10)}
+  catch(e){console.warn(e);$('zebMsg').textContent='Zápis se nepovedl.'}ZEB.busy=false};
+$('zebName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')$('zebSave').click()});
+$('bZeb').onclick=()=>{zebScr('zebS');zebLoad($('zebList'),20)};
+$('zebBack').onclick=()=>zebScr('menu');
 
 /* ===================== SMYČKA ===================== */
 let last=performance.now();
@@ -949,6 +1026,6 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-last)
   else if(state==='menu'||state==='end'){const t=now/9000;const s=M.start||[0,0];camera.position.set(s[0]+Math.sin(t)*70,45+gy(s[0],s[1]+130),s[1]+130+Math.cos(t)*70);camera.lookAt(s[0],gy(s[0],s[1]+130),s[1]+130)}
   renderer.render(scene,camera)}
 $('loading').remove();requestAnimationFrame(loop);
-window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},dogs,bins,binKey,hitDog,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
+window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},dogs,bins,binKey,hitDog,bikes,bikeKey,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
   setChar:v=>{selChar=v},setTime:v=>{timeLeft=v},step:n=>{for(let i=0;i<n&&state==='play';i++)update(.05)},get timeLeft(){return timeLeft}};
 
