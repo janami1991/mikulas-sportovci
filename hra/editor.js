@@ -240,6 +240,10 @@ function panelDum(){const b=ED.b;let h=`<div class="sec"><h2>Najít dům</h2><di
     ${col('cDoor','Barva dveří',dv.c||'#5a3a24',dv.c)}${col('cDoorF','Barva zárubně',dv.f||'#d9d4c8',dv.f)}
     <div class="btns"><button class="btn ${P&&P.t==='door'?'pri':''}" id="bDoorSel" type="button">Táhnout myší</button><button class="btn" id="bDoorNone" type="button">Bez dveří</button>${o.dv?'<button class="btn" id="bDoorAuto" type="button">Dveře automaticky</button>':''}</div>`}
   else h+=`<div class="note">${o.dv&&o.dv.none?'Budova je bez dveří.':'Budova nemá dveře.'} Vyber stěnu a dej je tam.</div>${o.dv?'<div class="btns"><button class="btn" id="bDoorAuto" type="button">Dveře automaticky</button></div>':''}`;
+  if(b.adr){const ob=obyv(b),cust=!!o.ob,on2=(id,lab,v)=>`<div class="row"><label>${lab}</label><input type="number" id="${id}" min="0" max="9" step="1" value="${v}"></div>`;
+    h+=`</div><div class="sec"><h2>Obyvatelé</h2><div class="note">Vyjdou před dům, když je u něj družina. ${cust?'Nastaveno ručně.':'Zatím náhodně (výchozí).'}</div>
+    ${on2('obM','Muži',ob.m)}${on2('obZ','Ženy',ob.z)}${on2('obK','Kluci',ob.k)}${on2('obH','Holky',ob.h)}
+    <div class="btns"><button class="btn" id="obRnd" type="button">Náhodně</button><button class="btn" id="obNone" type="button">Nikdo</button>${cust?'<button class="btn" id="obDef" type="button">Výchozí</button>':''}</div>`}
   h+=`</div><div class="sec"><h2>Přístupová cesta</h2><div class="note">${UPR.cesty[b.id]?(UPR.cesty[b.id].del?'Bez cesty.':'Vlastní cesta.'):'Automatická (od silnice ke dveřím).'}</div>
    <div class="btns"><button class="btn" id="pEdit" type="button">Upravit body</button><button class="btn" id="pDraw" type="button">Nakreslit novou</button>
    <button class="btn" id="pNone" type="button">Bez cesty</button><button class="btn" id="pAuto" type="button">Automatická</button></div>
@@ -305,6 +309,13 @@ function bindDum(){const b=ED.b,on=(id,ev,f)=>{const el=$(id);if(el)el.addEventL
   on('bDoorSel','click',()=>{ED.part=ED.part&&ED.part.t==='door'?null:{t:'door'};if(ED.part)ED.wall=b.door.e;render()});
   on('bDoorNone','click',()=>{snap();o().dv={none:1};ED.part=null;refreshHouse();renderPanel()});
   on('bDoorAuto','click',()=>{snap();delete o().dv;ED.part=null;refreshHouse();renderPanel()});
+  /* obyvatelé (jen data, dům se nepřekresluje) */
+  const setOb=v=>{snap();const q=o();if(v)q.ob=v;else delete q.ob;cleanOv(b.id);b.ov=UPR.b[b.id]||{};changed();renderPanel()};
+  const curOb=()=>({m:+$('obM').value||0,z:+$('obZ').value||0,k:+$('obK').value||0,h:+$('obH').value||0});
+  ['obM','obZ','obK','obH'].forEach(id=>on(id,'change',()=>{const v=curOb();for(const k in v)v[k]=clamp(Math.round(v[k]),0,9);setOb(v)}));
+  on('obRnd','click',()=>{const r=n=>Math.floor(Math.random()*n),ad=1+r(3),dt=r(4),v={m:0,z:0,h:0,k:0};
+    if(ad===1)Math.random()<.45?v.m=1:v.z=1;else{v.m=1;v.z=1;if(ad>2)Math.random()<.5?v.m++:v.z++}for(let i=0;i<dt;i++)Math.random()<.5?v.h++:v.k++;setOb(v)});
+  on('obNone','click',()=>setOb({m:0,z:0,h:0,k:0}));on('obDef','click',()=>setOb(null));
   /* přístupová cesta */
   on('pEdit','click',()=>{const p=housePath(b);if(!p&&!UPR.cesty[b.id]){toast('Dům nemá cestu – nakresli novou');return}snap();
     if(!UPR.cesty[b.id]||UPR.cesty[b.id].del)UPR.cesty[b.id]={p:(p?p.p:[[b.door.x,b.door.z],[b.door.x+3,b.door.z]]).map(q=>[r1(q[0]),r1(q[1])]),w:p?p.w:1.5};

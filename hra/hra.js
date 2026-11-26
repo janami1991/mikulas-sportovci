@@ -5,7 +5,7 @@
 const CFG = {
   aut: 3,                // kolik aut může jezdit najednou
   limit: 25*60,          // délka obchůzky v sekundách
-  napalovacu: 7,         // kolik jich je najednou ve hře
+  napalovacu: 8,         // kolik jich je najednou ve hře (7 + 10 %)
   chuze: 3.4, beh: 6.6,  // rychlost čerta (m/s)
   kidBeh: 5.5, kidUnaveny: 3.0,
   bodyDum: 10, bodyChycen: 25,
@@ -302,7 +302,7 @@ function newEnt(role,isPlayer,slot,v){const m=makeRole(role,v);scene.add(m);
   return {role,v:v||1,isPlayer,human:isPlayer,pid:null,name:'',id:slot,slot,mesh:m,atkN:0,scN:0,pos:new THREE.Vector3(),face:Math.PI,phase:rnd(0,6),stamina:100,tired:false,attack:0,atkT:0,hitDone:true,cool:0,
     st:'follow',target:null,chaseT:0,chaseCd:rnd(2,6),jump:0,scareT:0,running:false}}
 function spawnPoint(cx,cz,minD,maxD){for(let k=0;k<60;k++){const a=rnd(0,Math.PI*2),d=rnd(minD,maxD);const x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d;
-  const bx=M.box;if(x<bx[0]+5||x>bx[2]-5||z<bx[1]+5||z>bx[3]-5)continue;if(insideAny(x,z,1.2))continue;return [x,z]}return [cx+20,cz]}
+  const bx=M.box;if(x<bx[0]+5||x>bx[2]-5||z<bx[1]+5||z>bx[3]-5)continue;if(insideAny(x,z,1.2)||inWater(x,z,1.5))continue;return [x,z]}return [cx+20,cz]}
 function newKid(i){const m=makeKid(i);scene.add(m);const[cx,cz]=grpCenter();const[x,z]=spawnPoint(cx,cz,22,42);
   const b=document.createElement('div');b.className='bub hide';$('bubbles').appendChild(b);
   const star=new THREE.Sprite(new THREE.SpriteMaterial({map:starTex,transparent:true,depthWrite:false}));star.scale.set(.6,.6,1);star.visible=false;scene.add(star);
@@ -326,7 +326,7 @@ function spTeam(){const cv=[1,2,3,4,5].filter(v=>!(selChar==='cert'&&v===selVar)
 function resetGame(team){
   for(const e of ents)scene.remove(e.mesh);for(const k of kids){scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}for(const b of balls)scene.remove(b.m);
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(6,12);
-  ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;timeLeft=CFG.limit;ri=0;
+  clearRes();ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;timeLeft=CFG.limit;ri=0;
   const s=M.start||[0,0];player=null;
   /* čerti v družině mají každý jiný vzhled; hráč-čert ten, který si vybral */
   team=team||spTeam();
@@ -334,7 +334,7 @@ function resetGame(team){
   if(!player)player=ents[0];
   player.face=Math.PI;cam.yaw=Math.PI;cam.cur=undefined;
   route=makeRoute(s[0],s[1]);setMarks();planTo(0);
-  if(isHost()){const n=CFG.napalovacu+(NET.on?Math.floor((humans().length-1)*.7):0);for(let i=0;i<n;i++)kids.push(newKid(i))}
+  if(isHost()){const n=CFG.napalovacu+(NET.on?Math.floor((humans().length-1)*.77):0);for(let i=0;i<n;i++)kids.push(newKid(i))}
   $('hHousesT').textContent=route.length;$('tScare').textContent=ROLE[player.role].akce;updHud();
 }
 
@@ -561,6 +561,7 @@ function update(dt){
       help.forEach(e=>{e.st='chase';e.target=kd;e.herd=true;e.herdP=H;e.chaseT=8})}}
   ents.forEach((e,k)=>updMember(e,k,dt))}
   ents.forEach(e=>placeEnt(e,dt));
+  updRes(dt);
   for(let i=puffs.length-1;i>=0;i--){const p=puffs[i];p.t-=dt;p.v.y-=9*dt;p.m.position.addScaledVector(p.v,dt);p.m.scale.setScalar(Math.max(.1,p.t/.7));if(p.t<=0||p.m.position.y<p.g){scene.remove(p.m);puffs.splice(i,1)}}
   /* ukazatele */
   const[gx,gz]=grpCenter(),far=Math.hypot(P.pos.x-gx,P.pos.z-gz)>28;
@@ -595,7 +596,8 @@ function update(dt){
 /* napalovači: škádlí družinu, utíkají před kýmkoli z ní */
 function moveKid(k,dx,dz,spd,dt){const l=Math.hypot(dx,dz)||1;let ux=dx/l,uz=dz/l;
   if(k.turnT>0){k.turnT-=dt;const a=k.turn,c=Math.cos(a),s=Math.sin(a);const nx=ux*c-uz*s,nz=ux*s+uz*c;ux=nx;uz=nz}
-  const ox=k.pos.x,oz=k.pos.z;k.pos.x+=ux*spd*dt;k.pos.z+=uz*spd*dt;pushOut(k.pos,.4);
+  const ox=k.pos.x,oz=k.pos.z,wet=inWater(ox,oz);k.pos.x+=ux*spd*dt;k.pos.z+=uz*spd*dt;pushOut(k.pos,.4);
+  if(!wet&&inWater(k.pos.x,k.pos.z)){k.pos.x=ox;k.pos.z=oz}   /* do vody nevleze */
   const moved=Math.hypot(k.pos.x-ox,k.pos.z-oz);if(moved<spd*dt*0.45&&k.turnT<=0){k.turn=(Math.random()<.5?-1:1)*rnd(1,1.6);k.turnT=rnd(.6,1.2)}
   const tf=Math.atan2(ux,uz);let d=tf-k.face;d=Math.atan2(Math.sin(d),Math.cos(d));k.face+=d*Math.min(1,dt*10);k.phase+=dt*spd*2.8}
 function updKid(k,dt){k.pos.y=groundH(k.pos.x,k.pos.z)+.08;
@@ -636,6 +638,73 @@ const projV=new THREE.Vector3();
 function placeBubbles(){for(const k of kids){if(k.bub.classList.contains('hide'))continue;projV.set(k.pos.x,2.05,k.pos.z).project(camera);
   if(projV.z>1||Math.abs(projV.x)>1.1||Math.abs(projV.y)>1.1){k.bub.style.display='none';continue}k.bub.style.display='';
   k.bub.style.left=((projV.x+1)/2*innerWidth)+'px';k.bub.style.top=((1-projV.y)/2*innerHeight)+'px'}}
+
+/* ===================== OBYVATELÉ DOMŮ ===================== */
+/* když družina přijde k domu: otevřou se dveře a obyvatelé vyjdou ven před dům; po odchodu družiny se vrátí a dveře zavřou (počítá každý prohlížeč sám) */
+const RES=[];
+const COATS=[0x6d4c41,0x37474f,0x546e7a,0x8d6e63,0x455a64,0x5d4037,0x3e5641,0x7b3f3f],DRESS=[0x8e3b46,0x4a5a8a,0x6a4c7a,0x2f6f6a,0x9a6a3a,0x5b6b3b],HAIRC=[0x3b2a1e,0x6b4a2b,0x9a7b4f,0x2a2522,0xc9a46a,0x8f8a85];
+function makePerson(kind,seed){const H=n=>((seed*2654435761+n*97)>>>0)%1000/1000,pick=(a,n)=>a[Math.floor(H(n)*a.length)];
+  const g=new THREE.Group(),skin=lam(0xf1c9a0),hair=lam(pick(HAIRC,1)),child=kind==='h'||kind==='k',fem=kind==='z'||kind==='h';
+  const top=lam(fem?pick(DRESS,2):pick(child?JACKETS:COATS,2)),pants=lam(fem?0x3a3a44:pick([0x2b4c7e,0x3a3a3a,0x4e4a42],3));
+  const legL=limb(.17,.82,.19,pants,-.11,.82,0),legR=limb(.17,.82,.19,pants,.11,.82,0);
+  const body=box(.52,.72,.3,top,0,1.18,0);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.2,10,8),skin);head.position.y=1.76;
+  const armL=limb(.13,.66,.15,top,-.33,1.5,0),armR=limb(.13,.66,.15,top,.33,1.5,0);
+  g.add(legL,legR,body,head,armL,armR);
+  if(fem){const sk=new THREE.Mesh(new THREE.CylinderGeometry(.27,.36,.5,10),top);sk.position.y=.62;g.add(sk);
+    const hb=box(.38,.42,.12,hair,0,1.68,-.15);g.add(hb);const ht=new THREE.Mesh(new THREE.SphereGeometry(.21,10,6,0,Math.PI*2,0,Math.PI/2),hair);ht.position.y=1.78;g.add(ht)}
+  else{const ht=new THREE.Mesh(new THREE.SphereGeometry(.205,10,6,0,Math.PI*2,0,Math.PI/2.4),hair);ht.position.y=1.79;g.add(ht);
+    if(kind==='k'){const cap=new THREE.Mesh(new THREE.SphereGeometry(.215,10,6,0,Math.PI*2,0,Math.PI/2),lam(pick(JACKETS,4)));cap.position.y=1.8;g.add(cap)}}
+  for(const sx of[-.075,.075]){const eye=box(.04,.04,.02,lam(0x222222),sx,1.79,.19);g.add(eye)}
+  const s=child?.62+H(5)*.12:fem?.94+H(5)*.05:1+H(5)*.06;g.scale.setScalar(s);
+  g.userData={legL,legR,armL,armR};return g}
+function resGroup(i){const o=route[i],b=o.b,ob=obyv(b),n=ob.m+ob.z+ob.h+ob.k;if(!n||!b.door)return null;
+  const d=b.door,E=d.E,dv=b.ov.dv||{},dw=+dv.w||1,dh=+dv.h||2.12,cp=d.cp,ry=Math.atan2(E.nx,E.nz),gh=gyC(cp[0],cp[1]);
+  const ux=Math.cos(ry),uz=-Math.sin(ry);   /* směr podél stěny (lokální osa x dveří) */
+  const G={ri:i,b,cp,E,ux,uz,open:0,leave:0,people:[],door:null};
+  if(d.drawn){const piv=new THREE.Group();piv.position.set(cp[0]+E.nx*.12-ux*dw/2,gh,cp[1]+E.nz*.12-uz*dw/2);piv.rotation.y=ry;
+    const leaf=box(dw,dh,.06,lam(dv.c||'#5a3a24'),dw/2,dh/2,0),knob=box(.08,.08,.06,lam(0xc9a227),dw-.15,Math.min(1,dh*.47),.06);piv.add(leaf,knob);
+    const hole=new THREE.Mesh(new THREE.PlaneGeometry(dw,dh),new THREE.MeshBasicMaterial({color:0x6b4a24}));hole.position.set(cp[0]+E.nx*.105,gh+dh/2,cp[1]+E.nz*.105);hole.rotation.y=ry;hole.visible=false;
+    scene.add(piv,hole);G.door={piv,hole,ry}}
+  /* místa před domem: dospělí u zdi po stranách dveří, děti před nimi */
+  const kinds=[...Array(ob.m).fill('m'),...Array(ob.z).fill('z'),...Array(ob.h).fill('h'),...Array(ob.k).fill('k')];
+  let ai=0,ci=0;const side=j=>(j%2?1:-1)*(1.3+Math.floor(j/2)*.8);
+  kinds.forEach((k,j)=>{const ch=k==='h'||k==='k',lat=ch?side(ci++)*.75:side(ai++),out=ch?1.9:.95;
+    const sp={x:cp[0]+E.nx*out+ux*lat,z:cp[1]+E.nz*out+uz*lat};pushOut(sp,.35);
+    const m=makePerson(k,b.i*13+j);m.visible=false;scene.add(m);
+    G.people.push({k,mesh:m,pos:new THREE.Vector3(cp[0]-E.nx*.3,gh,cp[1]-E.nz*.3),face:ry,phase:rnd(0,6),slot:sp,st:'in',wp:0,delay:.9+j*.55,wave:0,t:rnd(0,5)})});
+  return G}
+function resPts(G,p){const{cp,E}=G;return [[cp[0]-E.nx*.3,cp[1]-E.nz*.3],[cp[0]+E.nx*.7,cp[1]+E.nz*.7],[p.slot.x,p.slot.z]]}
+function resWalk(p,tx,tz,dt){const dx=tx-p.pos.x,dz=tz-p.pos.z,d=Math.hypot(dx,dz);if(d<.06)return true;const s=Math.min(1.3*dt,d);p.pos.x+=dx/d*s;p.pos.z+=dz/d*s;
+  let a=Math.atan2(dx,dz)-p.face;a=Math.atan2(Math.sin(a),Math.cos(a));p.face+=a*Math.min(1,dt*9);p.phase+=s*2.8;return false}
+function clearRes(){for(const G of RES){for(const p of G.people)scene.remove(p.mesh);if(G.door){scene.remove(G.door.piv,G.door.hole)}}RES.length=0}
+function updRes(dt){
+  if(grp.phase==='visit'&&route[ri]&&!RES.some(G=>G.ri===ri)){const G=resGroup(ri);if(G)RES.push(G);else RES.push({ri,people:[],dead:true})}
+  const L=leader();
+  for(let gi=RES.length-1;gi>=0;gi--){const G=RES[gi];if(G.dead){if(G.ri!==ri)RES.splice(gi,1);continue}
+    const active=grp.phase==='visit'&&ri===G.ri;if(!active)G.leave+=dt;let moving=false,inside=0;
+    for(const p of G.people){const P3=resPts(G,p);p.t+=dt;
+      if(active&&p.st==='in'){p.delay-=dt;if(p.delay<=0&&G.open>.6){p.st='out';p.wp=1;p.mesh.visible=true}}
+      if(!active&&p.st!=='in'&&p.st!=='back'&&G.leave>1.2+p.delay*.6){p.st='back';p.wp=1}
+      if(!active&&p.st==='in')p.delay=0;
+      let spd=0;
+      if(p.st==='out'){moving=true;if(resWalk(p,P3[p.wp][0],P3[p.wp][1],dt)){if(p.wp<2)p.wp++;else{p.st='stand';p.wave=p.k==='m'||p.k==='z'?1.6:0}}spd=1}
+      else if(p.st==='back'){moving=true;if(resWalk(p,P3[p.wp][0],P3[p.wp][1],dt)){if(p.wp>0)p.wp--;else{p.st='in';p.mesh.visible=false}}spd=1}
+      else if(p.st==='stand'){const tx=L?L.pos.x:G.cp[0]+G.E.nx*3,tz=L?L.pos.z:G.cp[1]+G.E.nz*3;let a=Math.atan2(tx-p.pos.x,tz-p.pos.z)-p.face;a=Math.atan2(Math.sin(a),Math.cos(a));p.face+=a*Math.min(1,dt*3)}
+      if(p.st==='in')inside++;
+      const u=p.mesh.userData;p.pos.y=groundH(p.pos.x,p.pos.z);
+      let hop=0;if(p.st==='stand'){
+        if(p.wave>0){p.wave-=dt;u.armR.rotation.x=-2.6;u.armR.rotation.z=Math.sin(p.t*9)*.35;if(p.wave<=0){u.armR.rotation.x=0;u.armR.rotation.z=0}}
+        else{u.armL.rotation.x=u.armR.rotation.x=Math.sin(p.t*1.3)*.05}
+        if(p.k==='h'||p.k==='k'){/* děti poskakují, když je blízko strašící člen družiny */const sc=ents.some(e=>e.role!=='mikulas'&&(e.scareT>0||grp.phase==='visit'&&e.st2>0)&&Math.hypot(e.pos.x-p.pos.x,e.pos.z-p.pos.z)<4);
+          if(sc)hop=Math.abs(Math.sin(p.t*7))*.12}
+        u.legL.rotation.x=u.legR.rotation.x=0}
+      else animWalk(p.mesh,p.phase,spd?.8:0);
+      p.mesh.position.set(p.pos.x,p.pos.y+hop,p.pos.z);p.mesh.rotation.y=p.face}
+    const want=moving&&G.people.some(p=>(p.st==='out'&&p.wp<=1)||(p.st==='back'&&p.wp===0))||(active&&G.people.some(p=>p.st==='in'&&p.delay<.8));
+    G.open=clamp(G.open+(want?1.6:-1.1)*dt,0,1);
+    if(G.door){G.door.piv.rotation.y=G.door.ry-1.75*G.open*G.open*(3-2*G.open);G.door.hole.visible=G.open>.02}
+    if(!active&&inside===G.people.length&&G.open<=0&&G.leave>2){for(const p of G.people)scene.remove(p.mesh);if(G.door)scene.remove(G.door.piv,G.door.hole);RES.splice(gi,1)}}}
 
 /* ===================== MINIMAPA ===================== */
 const mapBg=document.createElement('canvas');
@@ -733,6 +802,6 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-last)
   else if(state==='menu'||state==='end'){const t=now/9000;const s=M.start||[0,0];camera.position.set(s[0]+Math.sin(t)*70,45+gy(s[0],s[1]+130),s[1]+130+Math.cos(t)*70);camera.lookAt(s[0],gy(s[0],s[1]+130),s[1]+130)}
   renderer.render(scene,camera)}
 $('loading').remove();requestAnimationFrame(loop);
-window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},get ri(){return ri},B,start,animAttack,state:()=>state,
+window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},get ri(){return ri},RES,B,start,animAttack,state:()=>state,
   setChar:v=>{selChar=v},setTime:v=>{timeLeft=v},step:n=>{for(let i=0;i<n&&state==='play';i++)update(.05)},get timeLeft(){return timeLeft}};
 

@@ -50,6 +50,9 @@ let BRIDGES=[];
 function roadH(x,z){for(const b of BRIDGES){if(Math.abs(x-b.px)>b.half+b.hw||Math.abs(z-b.pz)>b.half+b.hw)continue;const u=(x-b.px)*b.ux+(z-b.pz)*b.uz,v=-(x-b.px)*b.uz+(z-b.pz)*b.ux;
   if(Math.abs(u)<=b.half&&Math.abs(v)<=b.hw)return b.hA+(b.hB-b.hA)*(u+b.half)/(2*b.half)}return gy(x,z)}
 function groundH(x,z){const c=carve(x,z);if(c<0.02)return gy(x,z);return onRoad(x,z)?roadH(x,z):gy(x,z)-c}
+/* voda: koryto potoka (hladina + kousek břehu), most/silnice nad ním se nepočítá */
+function inWater(x,z,pad){const l=WG.get(wKey(x,z));if(!l)return false;pad=pad===undefined?.5:pad;
+  for(const s of l){const q=closestOnSeg(x,z,s.ax,s.az,s.bx,s.bz);if(Math.hypot(x-q[0],z-q[1])<s.hw+pad)return !onRoad(x,z)}return false}
 
 /* ===================== SILNICE (s úpravami) ===================== */
 M.r0=M.r;
@@ -189,6 +192,14 @@ function ribbons(list,y,colorOf,widthOf,tile,hf){const P=[],C=[],U=[];tile=tile|
       P.push(...a,...c2,...b,...b,...c2,...d);U.push(u0,1,u1,1,u0,0,u0,0,u1,1,u1,0);for(let k=0;k<6;k++)C.push(c.r,c.g,c.b)}}
   const g=tris(P,C);g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));return g}
 /* prošlapaný sníh s vyjetými kolejemi, kde je vidět asfalt */
+/* hlavní silnice: protažená, převážně tmavý asfalt, sníh jen u krajnic a v pruzích */
+function roadTexP(){const W=512,H=128,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');let r=11;const R=()=>{r=(r*16807)%2147483647;return r/2147483647};
+  x.fillStyle='#3e4249';x.fillRect(0,0,W,H);
+  for(let i=0;i<220;i++){const g=50+R()*25|0;x.fillStyle=`rgba(${g},${g+3},${g+8},${.25+R()*.35})`;x.beginPath();x.ellipse(R()*W,R()*H,8+R()*36,2+R()*5,0,0,7);x.fill()}
+  for(const[y0,y1]of[[0,.12],[.88,1]]){for(let i=0;i<90;i++){x.fillStyle=`rgba(225,232,240,${.35+R()*.5})`;const yy=(y0+(y1-y0)*R())*H;x.beginPath();x.ellipse(R()*W,yy,10+R()*40,2+R()*5,0,0,7);x.fill()}}
+  for(let i=0;i<26;i++){x.fillStyle=`rgba(215,222,232,${.15+R()*.3})`;x.beginPath();x.ellipse(R()*W,(.45+R()*.1)*H,15+R()*50,1.5+R()*3,0,0,7);x.fill()}
+  for(let i=0;i<160;i++){x.fillStyle=`rgba(255,255,255,${R()*.35})`;x.fillRect(R()*W,R()*H,1+R()*3,1+R()*2)}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;return t}
 function roadTex(){const W=512,H=128,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');let r=5;const R=()=>{r=(r*16807)%2147483647;return r/2147483647};
   x.fillStyle='#c4ccd7';x.fillRect(0,0,W,H);
   for(let i=0;i<260;i++){x.fillStyle=`rgba(${120+R()*40|0},${125+R()*40|0},${135+R()*40|0},${.15+R()*.25})`;x.beginPath();x.ellipse(R()*W,R()*H,10+R()*40,2+R()*6,0,0,7);x.fill()}
@@ -208,7 +219,7 @@ function meshTex(){const S=64,c=document.createElement('canvas');c.width=c.heigh
   x.beginPath();x.moveTo(0,0);x.lineTo(S,S);x.moveTo(S,0);x.lineTo(0,S);x.stroke();const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
 const ROADTEX=roadTex(),PAVETEX=paveTex(),MESHTEX=meshTex();
 const PO=(m,f)=>Object.assign(m,{polygonOffset:true,polygonOffsetFactor:f,polygonOffsetUnits:f});
-const MAT={pave:PO(new THREE.MeshLambertMaterial({map:PAVETEX}),-2),track:PO(new THREE.MeshLambertMaterial({map:ROADTEX,color:0xe6e2da}),-2),road:PO(new THREE.MeshLambertMaterial({map:ROADTEX}),-3),
+const MAT={pave:PO(new THREE.MeshLambertMaterial({map:PAVETEX}),-2),track:PO(new THREE.MeshLambertMaterial({map:ROADTEX,color:0xe6e2da}),-2),road:PO(new THREE.MeshLambertMaterial({map:ROADTEX}),-3),roadP:PO(new THREE.MeshLambertMaterial({map:roadTexP()}),-3),
   vc:new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}),mesh:new THREE.MeshLambertMaterial({map:MESHTEX,transparent:true,alphaTest:.3,side:THREE.DoubleSide})};
 /* voda a koleje se nemění */
 scene.add(new THREE.Mesh(ribbons(M.w,0,()=>0x3d5a78,r=>r.w+0.5,6,(x,z,r)=>gy(x,z)-(r.d||1.5)),PO(new THREE.MeshLambertMaterial({vertexColors:true,emissive:0x060c18}),-1)));
@@ -239,7 +250,8 @@ function buildRoads(){M.r=roadsEff();scene.remove(roadGroup);roadGroup.traverse(
           BRIDGEWALLS.push([A[0]+ox,A[1]+oz,Bp[0]+ox,Bp[1]+oz])}}}}
   roadGroup.add(new THREE.Mesh(ribbons(R.filter(r=>FOOT.includes(r.t)),0.05,()=>0xffffff,r=>Math.max(1.6,r.w),2.2,roadH),MAT.pave));
   roadGroup.add(new THREE.Mesh(ribbons(R.filter(r=>r.t==='track'),0.04,()=>0xffffff,r=>r.w,8,roadH),MAT.track));
-  roadGroup.add(new THREE.Mesh(ribbons(R.filter(r=>!FOOT.includes(r.t)&&r.t!=='track'),0.06,()=>0xffffff,r=>r.w,10,roadH),MAT.road));
+  roadGroup.add(new THREE.Mesh(ribbons(R.filter(r=>!FOOT.includes(r.t)&&r.t!=='track'&&r.t!=='primary'),0.06,()=>0xffffff,r=>r.w,10,roadH),MAT.road));
+  roadGroup.add(new THREE.Mesh(ribbons(R.filter(r=>r.t==='primary'),0.065,()=>0xffffff,r=>r.w,10,roadH),MAT.roadP));
   /* mřížka úseků silnic (pro výšku na mostech) */
   RSEG.clear();for(const r of R)for(let i=1;i<r.p.length;i++){const[ax,az]=r.p[i-1],[bx,bz]=r.p[i],s=[ax,az,bx,bz,Math.max(1.6,r.w)/2+.25];
     for(let gx=Math.floor((Math.min(ax,bx)-s[4])/RGC);gx<=Math.floor((Math.max(ax,bx)+s[4])/RGC);gx++)for(let gz=Math.floor((Math.min(az,bz)-s[4])/RGC);gz<=Math.floor((Math.max(az,bz)+s[4])/RGC);gz++){
@@ -268,6 +280,13 @@ function doorOf(b){const dv=b.ov&&b.ov.dv;let e,t;
   const E=edgeOf(b,e),mg=((dv&&+dv.w)||1)/2+.2;t=clamp(t,Math.min(.5,mg/E.l),Math.max(.5,1-mg/E.l));const cx=E.ax+(E.bx-E.ax)*t,cz=E.az+(E.bz-E.az)*t;
   const x=cx+E.nx*1.4,z=cz+E.nz*1.4,ni=nearestNode(x,z),[nx,nz]=GR.n[ni]||[x,z];
   return {x,z,node:ni,road:Math.hypot(nx-cx,nz-cz),e,t,cp:[cx,cz],E}}
+
+/* obyvatelé domu: m muži, z ženy, h holky, k kluci; z editoru (ov.ob), jinak náhodně podle domu */
+function obyvDef(b){if(!b.adr||GARAGE.includes(b.t)||b.t==='barn')return {m:0,z:0,h:0,k:0};
+  const H=n=>((b.i*2654435761+n*40503)>>>0)%1000/1000,ad=1+Math.floor(H(1)*2.6),dt=Math.floor(H(2)*3.4);
+  let m=0,z=0;if(ad>=2){m=1;z=1;if(ad>2)(H(3)<.5?m++:z++)}else(H(3)<.45?m=1:z=1);
+  let h=0,k=0;for(let i=0;i<dt;i++)H(10+i)<.5?h++:k++;return {m,z,h,k}}
+function obyv(b){const o=b.ov&&b.ov.ob;if(!o)return obyvDef(b);const c=v=>Math.max(0,Math.min(9,Math.round(+v||0)));return {m:c(o.m),z:c(o.z),h:c(o.h),k:c(o.k)}}
 
 /* ===================== BUDOVY: vykreslení ===================== */
 const WALLS=[0xf1e3c6,0xe8d1a8,0xd9dccf,0xf4efe6,0xcfd8c4,0xe9c9a6,0xd6c2b0,0xeadfcd];
