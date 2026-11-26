@@ -74,7 +74,7 @@ function onMsg(m){
   case 's':if(inGame&&!NET.host)applySnap(m);break;
   case 'pts':onPts(m);break;
   case 'hit':if(inGame&&NET.host){const e=entBy(m.from);if(!e)break;const R=ROLE[e.role];
-    for(const i of m.k||[]){const k=kids[i];if(k&&k.st!=='down'&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
+    for(const i of m.k||[]){const k=kids[i];if(k&&!kOut(k)&&!(k.gone>0)&&Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<R.dosah+2.5)hitKid(e,k)}
     for(const i of m.d||[]){const g=dogs[i];if(g&&Math.hypot(g.pos.x-e.pos.x,g.pos.z-e.pos.z)<R.dosah+2.5)hitDog(e,g)}
     for(const pid of m.n||[]){const n=entBy(pid);if(n&&n.nap&&Math.hypot(n.pos.x-e.pos.x,n.pos.z-e.pos.z)<R.dosah+2.5)hitNap(e,n)}}break;
   case 'nb':if(inGame){const e=entBy(m.from);if(e)addNball(e,m.x,m.y,m.z,m.vx,m.vy,m.vz,m.c)}break;
@@ -83,6 +83,7 @@ function onMsg(m){
   case 'nbhit':if(inGame&&NET.host){const by=entBy(m.by),v=entBy(m.from);if(by&&v)napHit(by,v)}break;
   case 'nap':if(inGame&&NET.host){const e=entBy(m.from);if(e&&e.nap)doNap(e,m.a,ents[m.ti])}break;
   case 'bin':if(inGame)onBin(m,entBy(m.from));break;
+  case 'nes':if(inGame&&NET.host)onNes(m,entBy(m.from));break;
   case 'kolo':if(inGame)onKolo(m,entBy(m.from));break;
   case 'trak':if(inGame)onTrak(m,entBy(m.from));break;
   case 'scare':if(inGame&&NET.host){const e=entBy(m.from);if(e)doScare(e)}break;
@@ -155,8 +156,9 @@ function syncTeam(team,board){if(board)NET.board=board;
   const b=NET.board[NET.me];if(b)myStats(b);renderBoard()}
 /* převzetí řízení: napalovači, postavy počítače a čas pokračují z posledního stavu */
 function becomeHost(){
-  for(const k of kids){const c=k.code||0;k.st=c===2?'down':c===1?'flee':'roam';k.t=c===2?3:rnd(1,3);k.gone=c===3?2:0;k.stamina=100;k.throwCd=rnd(2,5);k.hp=1;k.freeze=0;k.turn=0;k.turnT=0;
-    if(c!==2){k.mesh.rotation.set(0,k.face,0);k.star.visible=false}}
+  {const P=player;if(P&&isKidO(P.carry))P.carry=null}
+  for(const k of kids){const c=k.code||0;if(c>=4||k.fl){k.fl=false;nesLimbs(k);k.mesh.rotation.set(0,k.face,0)}k.st=c===2||c>=4?'down':c===1?'flee':'roam';k.t=c===2?3:rnd(1,3);k.gone=c===3?2:0;k.stamina=100;k.throwCd=rnd(2,5);k.hp=1;k.freeze=0;k.turn=0;k.turnT=0;
+    if(c!==2&&c<4){k.mesh.rotation.set(0,k.face,0);k.star.visible=false}}
   dogsHost();tractorsHost();
   for(const e of ents){if(e.human)continue;e.st='return';e.target=null;e.chaseCd=rnd(2,5);e.attack=0}
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(3,8);
@@ -175,7 +177,7 @@ const ST=['follow','chase','hold','return'];
 function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:0,gt:r1(grp.t),au:grp.auto?1:0,wt:r1(grp.wt||0),me:myState(),
     e:ents.map(e=>e.human?0:[r2(e.pos.x),r2(e.pos.z),r2(e.face),r1(e.spd||0),e.running?1:0,e.atkN,0,Math.max(0,ST.indexOf(e.st))]),
     dg:dogsSnap(),tr:tractorsSnap(),
-    k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='flee'?1:0]),
+    k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='held'?4:k.st==='fly'?5:k.st==='flee'?1:0,k.st==='held'?ents.indexOf(k.by):-1]),
     c:cars.map(c=>{if(!c.id)c.id=++carSeq;return [c.id,r2(c.pos.x),r2(c.pos.z),r2(c.face),r1(c.spd)]})};
   if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0){s.b=NET.board;s.bn=binsSnap();s.bk=bikesSnap()}return s}
 let carSeq=0;
@@ -186,7 +188,8 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
   m.e.forEach((a,i)=>{const e=ents[i];if(!a||!e||e.human)return;setTarget(e,a);e.st=ST[a[7]]||'follow'});
   while(kids.length<m.k.length){const k=newKid(kids.length);kids.push(k)}
   while(kids.length>m.k.length){const k=kids.pop();scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}
-  m.k.forEach((a,i)=>{const k=kids[i];if(k.tx===undefined){k.pos.x=a[0];k.pos.z=a[1]}k.tx=a[0];k.tz=a[1];k.tf=a[2];if(k.code!==a[3]){if(a[3]===2)k.t=0;k.code=a[3]}});
+  m.k.forEach((a,i)=>{const k=kids[i];if(k.tx===undefined){k.pos.x=a[0];k.pos.z=a[1]}k.tx=a[0];k.tz=a[1];k.tf=a[2];k.hb=a[4];if(k.code!==a[3]){if(a[3]===2)k.t=0;if(k.code===4&&a[3]!==4&&!k.fl)nesLimbs(k);k.code=a[3]}});
+  {const P=player;if(P&&isKidO(P.carry)){const k=P.carry;if(k.code===4&&ents[k.hb]===P)k.heldMe=0;else if(!k.heldMe||performance.now()-k.heldMe>1200)P.carry=null}}
   if(m.dg)dogsApply(m.dg);if(m.tr)tractorsApply(m.tr);if(m.bn)binsApply(m.bn);if(m.bk)bikesApply(m.bk);
   const seen=new Set();
   for(const a of m.c){seen.add(a[0]);let c=cars.find(x=>x.id===a[0]);if(!c){const mesh=makeCar();scene.add(mesh);c={id:a[0],mesh,pos:new THREE.Vector3(a[1],0,a[2]),face:a[3],spd:a[4],honk:0};cars.push(c)}c.tx=a[1];c.tz=a[2];c.tf=a[3];c.spd=a[4]}
@@ -197,6 +200,7 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
     else if(ev[0]==='cink'){const c=ents[ev[1]];if(c)c.jingle=1}
     else if(ev[0]==='ds'){const g=dogs[ev[1]];if(g){g.bub.textContent=ev[2];g.bub.classList.remove('hide');g.bubT=ev[3]||1400}}
     else if(ev[0]==='pb'){if(ev[1]===NET.me)biteMe()}
+    else if(ev[0]==='kt'){const k=kids[ev[1]];if(k&&ev[8]!==NET.me){const e=ents.find(x=>x.pid===ev[8]);if(e&&e.carry===k)e.carry=null;nesFly(k,{face:Math.atan2(ev[5],ev[7])},ev[2],ev[3],ev[4],ev[5],ev[6],ev[7]);k.by=null;k.fl=true}}
     else if(ev[0]==='b')addBall(ev[1],ev[2],ev[3],ev[4],ev[5],ev[6]);
     else if(ev[0]==='z'){const r=route[ev[1]];if(r)toast(`Zastávka: ${r.b.adr||'dům '+(ev[1]+1)}`,1400)}}
   if(m.b){NET.board=m.b;const b=m.b[NET.me];if(b)myStats(b);renderBoard()}}
@@ -213,7 +217,10 @@ window.netLocal=function(dt){
   tags()};
 /* napalovač u ostatních hráčů: jen plynule přejde na polohu od hostitele */
 window.viewKid=function(k,dt){const c=k.code||0;
-  if(c===3){k.mesh.visible=false;k.star.visible=false;k.bub.classList.add('hide');return}k.mesh.visible=true;
+  if(c===3){k.mesh.visible=false;k.star.visible=false;k.bub.classList.add('hide');k.fl=false;return}k.mesh.visible=true;
+  const bubDt=()=>{if(k.bubT>0){k.bubT-=dt*1000;if(k.bubT<=0)k.bub.classList.add('hide')}};
+  if(k.fl){if(nesStep(k,dt)){k.fl=false;nesLimbs(k);k.pos.x=k.fp.x;k.pos.z=k.fp.z}else{bubDt();return}}
+  const hb=c===4?ents[k.hb]:null;if(hb||(isKidO(player&&player.carry)&&player.carry===k&&k.heldMe)){nesPoseHeld(k,hb||player,dt);bubDt();return}
   const ox=k.pos.x,oz=k.pos.z;if(k.tx!==undefined){const a=Math.min(1,dt*10);if(Math.hypot(k.tx-ox,k.tz-oz)>8){k.pos.x=k.tx;k.pos.z=k.tz}else{k.pos.x+=(k.tx-ox)*a;k.pos.z+=(k.tz-oz)*a}k.face=lerpA(k.face,k.tf,a)}
   k.pos.y=groundH(k.pos.x,k.pos.z)+.08;const spd=Math.hypot(k.pos.x-ox,k.pos.z-oz)/Math.max(dt,1e-3);k.phase+=dt*spd*2.8;
   if(c===2){k.t+=dt;const u=k.mesh.userData,kk=Math.sin(k.t*16);k.mesh.position.copy(k.pos);k.mesh.position.y=k.pos.y+.22;k.mesh.rotation.set(-Math.PI/2,k.face,0,'YXZ');
