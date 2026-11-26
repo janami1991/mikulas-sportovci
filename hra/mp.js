@@ -9,7 +9,6 @@ const SEND_DT=.125;                 /* 8 zpráv za sekundu */
 const IDLE_KICK=60, IDLE_WARN=45;   /* nečinnost ve hře (s) */
 const ROLE_N={mikulas:'Mikuláš',cert:'Čert',konik:'Koník',smrtka:'Smrtka',prda:'Prďa'};
 const LIMIT={mikulas:1,smrtka:1,konik:1,prda:1,cert:8};
-const CODE_CH='ABCDEFGHJKLMNPRSTUVXYZ23456789';
 const r2=v=>Math.round(v*100)/100, r1=v=>Math.round(v*10)/10;
 
 let ws=null,code='',lobby=null,myRole='',myVar=+store('obchuzka-cert')||1,inGame=false,sendT=0,snapN=0,evQ=[],lastAct=performance.now(),joinT=0,boardT=0,lastSnap=null;
@@ -34,11 +33,14 @@ $('bMulti').onclick=()=>{showScreen('mp');renderMp()};
 $('mpBack').onclick=()=>{disconnect();showScreen('menu')};
 $('mpName').value=store('obchuzka-jmeno')||'';
 const nameOk=()=>{const n=$('mpName').value.trim();if(!n){mpMsg('Napiš přezdívku.');$('mpName').focus();return null}store('obchuzka-jmeno',n);return n};
-$('mpCreate').onclick=()=>{const n=nameOk();if(!n)return;let c='';for(let i=0;i<4;i++)c+=CODE_CH[Math.floor(Math.random()*CODE_CH.length)];connect(c,n)};
-$('mpJoinB').onclick=()=>{const n=nameOk();if(!n)return;const c=$('mpCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length<3){mpMsg('Zadej kód místnosti.');return}connect(c,n)};
-$('mpCode').addEventListener('keydown',e=>{if(e.key==='Enter')$('mpJoinB').click()});
-$('mpCopy').onclick=()=>{const u=location.origin+location.pathname+'?mistnost='+code;
-  (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>mpMsg('Odkaz zkopírován – pošli ho ostatním.'),()=>mpMsg('Odkaz: '+u))};
+/* ---------- seznam pevných místností 1–6 (stav ze serveru, obnovuje se každých 10 s) ---------- */
+const ROOMS_URL=SERVER.replace(/^ws/,'http')+'/mistnosti';let roomsT=0,roomsData=null;
+function roomsLoop(){clearTimeout(roomsT);if($('mp').classList.contains('hide')||lobby||ws)return;loadRooms();roomsT=setTimeout(roomsLoop,10000)}
+async function loadRooms(){try{const r=await fetch(ROOMS_URL,{cache:'no-store'});roomsData=(await r.json()).m}catch(e){roomsData=null}renderRooms()}
+function renderRooms(){const el=$('mpRooms');if(!roomsData){el.innerHTML='<span class="keys">Server není dostupný.</span>';return}
+  el.innerHTML=roomsData.map(r=>{const plno=r.hraci>=12||r.pripojeni>=16,txt=!r.pripojeni?'prázdná':`${r.hraci}/12 hráčů${r.pripojeni>r.hraci?` (+${r.pripojeni-r.hraci} vybírá)`:''} · ${r.hraje?'hraje se':'čeká se na start'}`;
+    return `<div class="room${r.pripojeni?' on':''}"><div><b>Místnost ${r.c}</b><small>${txt}</small></div><button class="big2" type="button" data-room="${r.c}"${plno?' disabled':''}>${plno?'Plno':'Připojit'}</button></div>`}).join('')}
+$('mpRooms').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b||b.disabled)return;const n=nameOk();if(!n)return;clearTimeout(roomsT);connect(b.dataset.room,n)});
 $('mpStart').onclick=()=>{if(!lobby)return;
   if(!myRole){mpErr('Vyber si postavu.',1);return}
   if(lobby.hraje){joinT=performance.now();NET.send({t:'join',to:lobby.host});mpMsg('Připojuji do rozehrané hry…');return}
@@ -46,8 +48,6 @@ $('mpStart').onclick=()=>{if(!lobby)return;
 /* po konci hry: „Hrát znovu“ vrátí do místnosti, když je spojení otevřené */
 {const sp=$('bAgain').onclick;$('bAgain').onclick=()=>{if(open()){showScreen('mp');renderMp()}else sp()}}
 $('bMenu').onclick=()=>{disconnect();showScreen('menu')};
-const urlRoom=new URLSearchParams(location.search).get('mistnost');
-if(urlRoom){$('mpCode').value=urlRoom.toUpperCase();showScreen('mp');renderMp()}
 
 /* ---------- spojení ---------- */
 function connect(c,name){disconnect();code=c;mpMsg('Připojuji…');
@@ -55,7 +55,7 @@ function connect(c,name){disconnect();code=c;mpMsg('Připojuji…');
   const me=ws;
   ws.onmessage=e=>{if(ws!==me)return;let m;try{m=JSON.parse(e.data)}catch(_){return}onMsg(m)};
   ws.onclose=()=>{if(ws!==me)return;ws=null;const was=NET.on&&state==='play';NET.on=false;inGame=false;lobby=null;
-    if(was)showEnd('left','Spojení se serverem se přerušilo.');else{mpMsg(mpFull?'Místnost je plná – můžeš hrát sám (Zpět → Hrát sám).':'Spojení se serverem se přerušilo.');renderMp()}mpFull=false};
+    if(was)showEnd('left','Spojení se serverem se přerušilo.');else{mpMsg(mpFull?'Místnost je plná – vyber jinou, nebo hraj sám (Zpět → Jeden hráč).':'Spojení se serverem se přerušilo.');renderMp()}mpFull=false};
   ws.onerror=()=>{if(ws===me)mpMsg('Server není dostupný.')}}
 let mpFull=false;
 function disconnect(){if(ws){const w=ws;ws=null;try{w.close()}catch(e){}}NET.on=false;inGame=false;lobby=null;myRole='';hideTags()}
@@ -87,8 +87,8 @@ function onLobby(m){const wasHost=NET.host;lobby=m;
   NET.host=m.host===NET.me;
   if(inGame&&state==='play'){if(NET.host&&!wasHost)becomeHost();if(NET.host)reconcile()}
   renderMp()}
-function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('mpRoom').classList.toggle('hide',!on);if(!on)return;
-  $('mpRoomCode').textContent=code;
+function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('mpRoom').classList.toggle('hide',!on);if(!on){if(!ws)roomsLoop();return}
+  $('mpRoomCode').textContent='Místnost '+code;
   $('mpList').innerHTML=lobby.hraci.map(p=>`<span>${esc(p.n)}${p.id===NET.me?' (ty)':''}${p.id===lobby.host?' ★':''}</span><b>${p.r?ROLE_N[p.r]:'vybírá…'}</b>`).join('');
   const taken={};for(const p of lobby.hraci)if(p.r&&p.id!==NET.me)taken[p.r]=(taken[p.r]||0)+1;
   const total=lobby.hraci.filter(p=>p.r&&p.id!==NET.me).length;

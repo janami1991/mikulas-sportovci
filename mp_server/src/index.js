@@ -19,6 +19,7 @@ export class Mistnost extends DurableObject {
     });
   }
   async fetch(req) {
+    if (new URL(req.url).pathname === "/stav") return Response.json(await this.room.prehled());
     const jmeno = new URL(req.url).searchParams.get("jmeno") || "";
     const [klient, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
@@ -30,14 +31,26 @@ export class Mistnost extends DurableObject {
   async webSocketError(ws) { await this.room.close(ws); }
 }
 
+export const MISTNOSTI = 6;   // pevné místnosti 1–6
+const mistnost = (env, n) => env.MISTNOST.get(env.MISTNOST.idFromName(String(n)));
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const m = url.pathname.match(/^\/mistnost\/([A-Za-z0-9_-]{1,24})$/);
+    const origin = req.headers.get("Origin") || "";
+    /* seznam místností pro okno Více hráčů (1 dotaz na Worker + 1 na každou místnost) */
+    if (url.pathname === "/mistnosti") {
+      const ok = POVOLENE.some(r => r.test(origin));
+      const stav = await Promise.all([...Array(MISTNOSTI)].map((_, i) =>
+        mistnost(env, i + 1).fetch("https://mistnost/stav").then(r => r.json()).catch(() => null)));
+      return Response.json({ m: stav.map((s, i) => ({ c: i + 1, ...(s || { hraci: 0, pripojeni: 0, hraje: false, chyba: 1 }) })) },
+        { headers: ok ? { "Access-Control-Allow-Origin": origin, "Vary": "Origin" } : {} });
+    }
+    const m = url.pathname.match(/^\/mistnost\/([1-9])$/);
     if (!m) return new Response("Mikulášská hra – server pro hru více hráčů běží.", { headers: { "content-type": "text/plain; charset=utf-8" } });
     if (req.headers.get("Upgrade") !== "websocket") return new Response("Očekávám WebSocket", { status: 426 });
-    const origin = req.headers.get("Origin") || "";
+    if (+m[1] > MISTNOSTI) return new Response("Neznámá místnost", { status: 404 });
     if (!POVOLENE.some(r => r.test(origin))) return new Response("Nepovolený původ", { status: 403 });
-    return env.MISTNOST.get(env.MISTNOST.idFromName(m[1].toUpperCase())).fetch(req);
+    return mistnost(env, m[1]).fetch(req);
   },
 };

@@ -23,6 +23,12 @@ export class Room {
     return { t: "lobby", hraje, host, hraci: hraci.map(a => ({ id: a.id, n: a.n, r: a.r, v: a.v, away: a.away ? 1 : 0 })) };
   }
 
+  /* přehled pro seznam místností: počet hráčů s postavou, všech připojených a jestli se hraje */
+  async prehled() {
+    const h = this.zive().map(w => this.io.att(w));
+    return { hraci: h.filter(a => a.r).length, pripojeni: h.length, hraje: h.length ? !!(await this.io.get("hraje")) : false };
+  }
+
   async rozeslat(bez) {
     const s = JSON.stringify(await this.stav(bez));
     for (const w of this.zive(bez)) this.io.send(w, s);
