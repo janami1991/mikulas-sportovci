@@ -26,6 +26,10 @@ NET.leave=msg=>{const was=NET.on&&state==='play';disconnect();if(was)showEnd('le
 /* ---------- obrazovky ---------- */
 function showScreen(id){for(const s of['menu','mp','end'])$(s).classList.toggle('hide',s!==id);if(id!=='end')$('ui').classList.add('hide')}
 function mpMsg(t){$('mpMsg').textContent=t||''}
+/* červená hláška pod tlačítkem „Vyjít na stranu“ */
+let errT=0;function mpErr(t,hl){const e=$('mpErr');e.textContent=t||'';e.classList.toggle('hide',!t);clearTimeout(errT);
+  const c=$('mpChar');c.classList.remove('need');if(hl){void c.offsetWidth;c.classList.add('need');(t?e:c).scrollIntoView({block:'center',behavior:'smooth'})}
+  if(t)errT=setTimeout(()=>{e.classList.add('hide');c.classList.remove('need')},4000)}
 $('bMulti').onclick=()=>{showScreen('mp');renderMp()};
 $('mpBack').onclick=()=>{disconnect();showScreen('menu')};
 $('mpName').value=store('obchuzka-jmeno')||'';
@@ -36,7 +40,7 @@ $('mpCode').addEventListener('keydown',e=>{if(e.key==='Enter')$('mpJoinB').click
 $('mpCopy').onclick=()=>{const u=location.origin+location.pathname+'?mistnost='+code;
   (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>mpMsg('Odkaz zkopírován – pošli ho ostatním.'),()=>mpMsg('Odkaz: '+u))};
 $('mpStart').onclick=()=>{if(!lobby)return;
-  if(!myRole){mpMsg('Nejdřív si vyber postavu.');return}
+  if(!myRole){mpErr('Vyber si postavu.',1);return}
   if(lobby.hraje){joinT=performance.now();NET.send({t:'join',to:lobby.host});mpMsg('Připojuji do rozehrané hry…');return}
   if(lobby.host===NET.me)hostStart()};
 /* po konci hry: „Hrát znovu“ vrátí do místnosti, když je spojení otevřené */
@@ -60,7 +64,7 @@ function onMsg(m){
   switch(m.t){
   case 'ahoj':NET.me=m.id;mpMsg('');break;
   case 'plno':mpFull=true;break;
-  case 'chyba':mpMsg(m.m);myRole=(lobby&&(lobby.hraci.find(p=>p.id===NET.me)||{}).r)||'';renderMp();break;
+  case 'chyba':mpErr(m.m,1);myRole=(lobby&&(lobby.hraci.find(p=>p.id===NET.me)||{}).r)||'';renderMp();break;
   case 'lobby':onLobby(m);break;
   case 'go':if(myRole&&m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board);break;
   case 'team':if(inGame)syncTeam(m.team,m.board);else if(m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board);break;
@@ -88,7 +92,8 @@ function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('
   const list=POSTAVY.filter(o=>o.id in LIMIT).map(o=>{const left=LIMIT[o.id]-(taken[o.id]||0),off=(left<=0||total>=12)&&myRole!==o.id;
     return {id:o.id,n:o.n,d:off?'obsazeno':o.id==='cert'?`volno ${left}×`:o.d,off:off?1:0}});
   const lock=inGame;
-  opts($('mpChar'),list,myRole,v=>{if(lock)return;myRole=v;NET.send({t:'role',r:v,v:myVar});$('mpVarW').classList.toggle('hide',v!=='cert')},o=>o.id+':'+(o.id==='cert'?myVar:1));
+  opts($('mpChar'),list,myRole,v=>{if(lock)return;myRole=v;mpErr('');NET.send({t:'role',r:v,v:myVar});$('mpVarW').classList.toggle('hide',v!=='cert')},o=>o.id+':'+(o.id==='cert'?myVar:1),
+    v=>mpErr(total>=12?'Hra je plná (12 hráčů).':(v==='cert'?'Všichni čerti jsou obsazení.':(ROLE_N[v]||'Postava')+' je už obsazen'+(v==='smrtka'?'á.':'ý.'))+' Vyber si jinou postavu.'));
   opts($('mpVar'),VARIANTY,myVar,v=>{myVar=+v;store('obchuzka-cert',myVar);if(myRole==='cert')NET.send({t:'role',r:'cert',v:myVar});const im=$('mpChar').querySelector('[data-id=cert] img');if(im)im.src=thumbs('cert:'+myVar)},o=>'cert:'+o.id+':h');
   $('mpVarW').classList.toggle('hide',myRole!=='cert');fillThumbs($('mpChar'));fillThumbs($('mpVar'));
   const host=lobby.host===NET.me,n=lobby.hraci.filter(p=>p.r).length;

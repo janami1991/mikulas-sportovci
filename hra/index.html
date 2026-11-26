@@ -53,7 +53,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .opt{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-radius:10px;padding:10px 8px;text-align:center;min-height:56px;font-size:14px}
 .opt small{display:block;color:#a0a0a0;font-size:11px;margin-top:2px}
 .opt[aria-pressed=true]{background:#fff;color:#111;border-color:#fff}
-.opt[disabled]{opacity:.4;cursor:not-allowed}
+.opt[disabled],.opt[aria-disabled=true]{opacity:.4;cursor:not-allowed}
+.err{color:#ff4d4d;font-weight:700;font-size:16px;text-align:center}
+.opts.need{animation:need .6s;outline:2px solid #ff4d4d;outline-offset:4px;border-radius:10px}
+@keyframes need{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .opt.pic{padding:6px 6px 8px;font-size:15px;font-weight:600}
 .opt.pic img{display:block;width:100%;aspect-ratio:4/5;object-fit:contain;margin:0 auto 4px;border-radius:8px;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),rgba(255,255,255,0) 70%)}
 .opt.pic[aria-pressed=true] img{background:radial-gradient(circle at 50% 40%,#fff,#dcdcdc 75%)}
@@ -158,6 +161,7 @@ button.big2{background:transparent}
    <div><div class="lbl">Hráči</div><div class="res" id="mpList"></div></div>
    <div><div class="lbl">Tvoje postava</div><div class="opts" id="mpChar"></div></div>
    <div id="mpVarW" class="hide"><div class="lbl">Vzhled čerta</div><div class="opts five" id="mpVar"></div></div>
+   <div class="err hide" id="mpErr" role="alert"></div>
    <button class="big" id="mpStart" type="button">Vyjít na stranu</button>
    <div class="keys" id="mpInfo"></div>
   </div>

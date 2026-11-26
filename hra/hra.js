@@ -686,8 +686,8 @@ function updNav(){const P=player;if(!navOn||!P){navArrow.visible=false;return}
 /* ===================== MENU / KONEC ===================== */
 let selChar=store('obchuzka-postava')||'cert',selSide='polnak',selVar=+store('obchuzka-cert')||1;
 if(!POSTAVY.some(p=>p.id===selChar&&!p.off))selChar='cert';
-function opts(el,list,sel,cb,img){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?'disabled':''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}</button>`).join('');
-  el.onclick=e=>{const b=e.target.closest('.opt');if(!b||b.disabled)return;cb(b.dataset.id);el.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b))}}
+function opts(el,list,sel,cb,img,offCb){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?(offCb?'aria-disabled="true"':'disabled'):''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}</button>`).join('');
+  el.onclick=e=>{const b=e.target.closest('.opt');if(!b||b.disabled)return;if(b.getAttribute('aria-disabled')==='true'){if(offCb)offCb(b.dataset.id);return}cb(b.dataset.id);el.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b))}}
 /* miniatury postav: vykreslí se jednou po načtení (celá postava, u čertů detail hlavy) */
 const thumbs=(()=>{let r=null;const cache={};
   return (key)=>{if(cache[key])return cache[key];const[role,v,head]=key.split(':');
