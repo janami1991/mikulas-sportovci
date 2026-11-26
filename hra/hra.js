@@ -980,7 +980,7 @@ function nesDrop(k,esc){const e=k.by;if(e&&e.carry===k)e.carry=null;k.by=null;ne
   else{k.st='down';k.t=2}}
 function nesLand(k){const by=k.by;k.by=null;k.st='down';k.t=rnd(2.5,3.5);k.hp=1;k.face=k.spin;nesLimbs(k);k.pos.set(k.fp.x,0,k.fp.z);pushOut(k.pos,.45);
   if(insideAny(k.pos.x,k.pos.z,.3)){k.pos.x-=k.fv.x*.06;k.pos.z-=k.fv.z*.06;pushOut(k.pos,.5)}k.pos.y=groundH(k.pos.x,k.pos.z)+.08;puff(k.pos.x,k.pos.z);
-  say(k,AU[Math.floor(Math.random()*AU.length)],1600);if(player&&Math.hypot(k.pos.x-player.pos.x,k.pos.z-player.pos.z)<25)cam.shake=Math.max(cam.shake||0,.06)}
+  say(k,'Ha ha, nebolelo!',1800);if(player&&Math.hypot(k.pos.x-player.pos.x,k.pos.z-player.pos.z)<25)cam.shake=Math.max(cam.shake||0,.06)}
 function nesCombo(e,o){o.st='down';o.t=rnd(5,7);o.hp=1;o.freeze=0;o.dash=0;say(o,AU[Math.floor(Math.random()*AU.length)],2000);
   award(e,'kombo',CFG.bodyKombo,`Kombo! Napalovačem na napalovače +${CFG.bodyKombo}`,1600)}
 /* hostitel: každý snímek */
