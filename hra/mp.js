@@ -117,7 +117,7 @@ function startNet(team,board){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.ho
   resetGame(team);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
   const b=NET.board[NET.me];if(b)myStats(b);
   state='play';navNear=false;setMapBig(false);showScreen('none');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
-  $('bPause').classList.add('hide');$('bEnd').textContent='Odejít ze hry';$('board').classList.remove('hide');renderBoard();
+  $('bPause').classList.add('hide');$('bEnd').textContent='Odejít ze hry';boardT=0;renderBoard();
   toast(player.role==='mikulas'?'Jsi Mikuláš – veď družinu k domům se žlutým světlem.':'Drž se družiny u domů a chytej napalovače! Body sbíráš sám za sebe.',3500);last=performance.now();
   if(isTouch&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{})}
 
@@ -223,7 +223,15 @@ function hideTags(){for(const t of TAGS.values())t.remove();TAGS.clear()}
 /* ---------- tabulka bodů ---------- */
 function rows(board){return Object.entries(board||{}).map(([id,b])=>({id,...b})).sort((a,b)=>b.score-a.score)}
 function renderBoard(){const now=performance.now();if(now-boardT<300){clearTimeout(renderBoard.t);renderBoard.t=setTimeout(renderBoard,320);return}boardT=now;
-  $('board').innerHTML=rows(NET.board).map((r,i)=>`<div class="${r.id===NET.me?'me':''}${r.left?' left':''}"><span>${i+1}. ${esc(r.n)}</span><b>${r.score}</b></div>`).join('')}
+  /* žebříček: nejlepší nahoře; klik / Tab = zmenšit jen na moje pořadí; víc než 5 hráčů = prvních 5 + já */
+  const rs=rows(NET.board),el=$('board'),mini=!!store('obchuzka-board-mini'),mi=rs.findIndex(r=>r.id===NET.me);
+  el.classList.toggle('hide',rs.length<2);el.classList.toggle('mini',mini);
+  const row=(r,i)=>`<div class="${r.id===NET.me?'me':''}${r.left?' left':''}${i===0&&r.score>0?' top':''}"><span>${i+1}. ${esc(r.n)}</span><b>${r.score}</b></div>`;
+  if(mini){el.innerHTML=mi<0?'':`<div class="me"><span>${mi===0?'🏆 ':''}${mi+1}. z ${rs.length}</span><b>${rs[mi].score}</b></div>`;return}
+  const show=rs.map((r,i)=>[r,i]).filter(([r,i])=>i<5||r.id===NET.me);
+  el.innerHTML='<h4>Pořadí <small>▲</small></h4>'+show.map(([r,i],k)=>(k&&i!==show[k-1][1]+1?'<div class="gap">…</div>':'')+row(r,i)).join('')}
+$('board').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();store('obchuzka-board-mini',!store('obchuzka-board-mini'));boardT=0;renderBoard()});
+addEventListener('keydown',e=>{if(e.key==='Tab'&&inGame){e.preventDefault();store('obchuzka-board-mini',!store('obchuzka-board-mini'));boardT=0;renderBoard()}});
 function showEnd(reason,msg,board){if(board)NET.board=board;const b=NET.board[NET.me];if(b)myStats(b);
   inGame=false;NET.on=false;hideTags();navArrow.visible=false;setMapBig(false);keys.clear();state='end';
   for(const k of kids)k.bub.classList.add('hide');
@@ -243,5 +251,5 @@ setInterval(()=>{if(!(NET.on&&inGame&&state==='play'))return;const idle=(perform
   if(idle>=IDLE_WARN)toast(`Nečinnost – za ${Math.ceil(IDLE_KICK-idle)} s tě hra odpojí`,1100)},1000);
 document.addEventListener('visibilitychange',()=>{if(open())NET.send({t:'vis',away:document.hidden?1:0})});
 
-window.__mp={get lobby(){return lobby},get code(){return code},connect,hostStart,get ws(){return ws},setRole:(r,v)=>{myRole=r;if(v)myVar=v;NET.send({t:'role',r,v:myVar})},act};
+window.__mp={renderBoard:()=>{boardT=0;renderBoard()},get lobby(){return lobby},get code(){return code},connect,hostStart,get ws(){return ws},setRole:(r,v)=>{myRole=r;if(v)myVar=v;NET.send({t:'role',r,v:myVar})},act};
 })();

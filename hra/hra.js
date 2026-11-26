@@ -345,29 +345,34 @@ function addEnt(t,i){const me=NET.on?NET.me:'me',isP=t.pid!=null&&t.pid===me;con
 /* ===================== OVLÁDÁNÍ ===================== */
 const keys=new Set();
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys.add(k);if(state!=='play')return;
-  if(k===' '||k==='j'){e.preventDefault();attack(player)}if(k==='q'||k==='e')scare();if(k==='escape'||k==='p')pause(true)});
+  if(k===' '||k==='j'){e.preventDefault();attack(player)}if(k==='q'||k==='e')scare();if(k==='r'){setAuto(!autoRun);toast(autoRun?'Automatický běh (R nebo S = stop)':'Automatický běh vypnut',1200)}if(k==='s'||k==='arrowdown')setAuto(false);if(k==='escape'||k==='p')pause(true)});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-const joy={id:null,x:0,y:0,dx:0,dy:0},look={id:null,x:0,y:0};let runHeld=false;
+const joy={id:null,x:0,y:0,dx:0,dy:0,run:false,lock:false},look={id:null,x:0,y:0};let runHeld=false,autoRun=false;
+function setAuto(on){autoRun=on;$('autoRun').classList.toggle('hide',!on)}
 canvas.addEventListener('pointerdown',e=>{if(state!=='play')return;
-  if(e.pointerType!=='mouse'&&e.clientX<innerWidth*0.45&&joy.id===null){joy.id=e.pointerId;joy.x=e.clientX;joy.y=e.clientY;joy.dx=joy.dy=0;const j=$('joy');j.style.left=e.clientX+'px';j.style.top=e.clientY+'px';j.classList.remove('hide')}
+  if(e.pointerType!=='mouse'&&e.clientX<innerWidth*0.45&&joy.id===null){joy.id=e.pointerId;joy.x=e.clientX;joy.y=e.clientY;joy.dx=joy.dy=0;joy.run=joy.lock=false;setAuto(false);const j=$('joy');j.style.left=e.clientX+'px';j.style.top=e.clientY+'px';j.classList.remove('hide','run','lock')}
   else if(look.id===null){look.id=e.pointerId;look.x=e.clientX;look.y=e.clientY}
   try{canvas.setPointerCapture(e.pointerId)}catch(err){}});
 canvas.addEventListener('pointermove',e=>{
-  if(e.pointerId===joy.id){let dx=e.clientX-joy.x,dy=e.clientY-joy.y;const l=Math.hypot(dx,dy),mx=55;if(l>mx){dx=dx/l*mx;dy=dy/l*mx}joy.dx=dx/mx;joy.dy=dy/mx;
+  if(e.pointerId===joy.id){let dx=e.clientX-joy.x,dy=e.clientY-joy.y;const l=Math.hypot(dx,dy),mx=55;
+    /* PUBG: přitáhnout až ke kraji = běh; táhnout dál nahoru až k zámku = automatický běh */
+    joy.run=l>mx*.9;joy.lock=dy<-mx*1.75&&Math.abs(dx)<-dy*.6;$('joy').classList.toggle('run',joy.run&&!joy.lock);$('joy').classList.toggle('lock',joy.lock);
+    if(l>mx){dx=dx/l*mx;dy=dy/l*mx}joy.dx=dx/mx;joy.dy=dy/mx;
     $('joy').firstElementChild.style.transform=`translate(${dx}px,${dy}px)`}
   else if(e.pointerId===look.id){cam.yaw-=(e.clientX-look.x)*0.006;cam.pitch=clamp(cam.pitch+(e.clientY-look.y)*0.004,0.12,1.1);look.x=e.clientX;look.y=e.clientY}});
-function endPtr(e){if(e.pointerId===joy.id){joy.id=null;joy.dx=joy.dy=0;$('joy').classList.add('hide');$('joy').firstElementChild.style.transform=''}if(e.pointerId===look.id)look.id=null}
+function endPtr(e){if(e.pointerId===joy.id){if(joy.lock)setAuto(true);joy.id=null;joy.dx=joy.dy=0;joy.run=joy.lock=false;$('joy').classList.remove('run','lock');$('joy').classList.add('hide');$('joy').firstElementChild.style.transform=''}if(e.pointerId===look.id)look.id=null}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',endPtr);
 canvas.addEventListener('wheel',e=>{cam.dist=clamp(cam.dist+e.deltaY*0.01,4,14)},{passive:true});
 const tb=(id,down,up)=>{const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();b.classList.add('on');down()});
   const u=e=>{b.classList.remove('on');up&&up()};b.addEventListener('pointerup',u);b.addEventListener('pointercancel',u);b.addEventListener('pointerleave',u)};
-tb('tHit',()=>attack(player));tb('tRun',()=>runHeld=true,()=>runHeld=false);tb('tScare',()=>scare());
+tb('tHit',()=>attack(player));tb('tRun',()=>{runHeld=true;setAuto(false)},()=>runHeld=false);
+$('autoRun').addEventListener('pointerdown',e=>{e.preventDefault();setAuto(false)});tb('tScare',()=>scare());
 addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ===================== ÚDER (pro hráče i počítač) ===================== */
 const ATK={wind:.15,strike:.09,rec:.3};
 function attack(e){if(e.attack>0||e.cool>0)return;e.attack=ATK.wind+ATK.strike+ATK.rec;e.atkT=0;e.hitDone=false;e.atkN++;if(!isHost())return;
-  for(const k of kids){if(Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<3.6)k.freeze=.4}}
+  for(const k of kids){if(Math.hypot(k.pos.x-e.pos.x,k.pos.z-e.pos.z)<3.6)k.freeze=.2}}
 function strikeHit(e){const fx=Math.sin(e.face),fz=Math.cos(e.face),R=ROLE[e.role],spin=e.role==='konik';
   if(!spin)puff(e.pos.x+fx*1.5,e.pos.z+fz*1.5);if(e.isPlayer)cam.shake=spin?.08:.18;const hits=[];
   for(const k of kids){if(k.st==='down'||k.gone>0)continue;const dx=k.pos.x-e.pos.x,dz=k.pos.z-e.pos.z,d=Math.hypot(dx,dz);
@@ -377,7 +382,7 @@ function strikeHit(e){const fx=Math.sin(e.face),fz=Math.cos(e.face),R=ROLE[e.rol
   return true}
 /* zásah napalovače (počítá hostitel) */
 function hitKid(e,k){const R=ROLE[e.role];if(k.st==='down'||k.gone>0)return;k.hp=(k.hp===undefined?1:k.hp)-R.sila;
-  if(k.hp>0.001){k.freeze=1.0;say(k,['Au!','Jau!','Au au!','Nech mě!'][Math.floor(Math.random()*4)],900);const n=Math.round(1/R.sila),done=n-Math.round(k.hp/R.sila);award(e,'msg',0,`Zásah ${done}/${n}`,700)}
+  if(k.hp>0.001){k.freeze=rnd(.2,.4);k.dash=rnd(.7,1.1);k.st='flee';k.t=rnd(2,3);say(k,['Au!','Jau!','Au au!','Nech mě!'][Math.floor(Math.random()*4)],900);const n=Math.round(1/R.sila),done=n-Math.round(k.hp/R.sila);award(e,'msg',0,`Zásah ${done}/${n}`,700)}
   else{k.st='down';k.t=rnd(5,7);k.hp=1;say(k,AU[Math.floor(Math.random()*AU.length)],2400);
     if(R.pokuta)award(e,'pen',R.pokuta,`Mikuláš se nemá prát! −${R.pokuta}`,1800);else award(e,'catch',CFG.bodyChycen,`Napalovač leží! +${CFG.bodyChycen}`,1200)}}
 const puffs=[],puffGeo=new THREE.SphereGeometry(.07,5,4),puffMat=new THREE.MeshBasicMaterial({color:0xffffff});
@@ -452,7 +457,7 @@ function updMember(e,k,dt){
   if(e.st!=='chase')e.running=false;
   if(e.st==='return'||e.st==='follow'){
     let tx,tz;
-    if(e===L){/* Mikuláš vede (řeší updGroup), u domu stojí u dveří */if(grp.phase==='visit'){tx=grp.door.x;tz=grp.door.z;spd=steer(e,tx,tz,1.5,dt);const hf=Math.atan2(grp.house.cx-e.pos.x,grp.house.cz-e.pos.z);let a=hf-e.face;a=Math.atan2(Math.sin(a),Math.cos(a));e.face+=a*Math.min(1,dt*4)}else spd=L.spd||0}
+    if(e===L){/* Mikuláš vede (řeší updGroup), u domu stojí u dveří */if(grp.phase==='visit'){tx=grp.door.x;tz=grp.door.z;spd=steer(e,tx,tz,1.5,dt);const fp=resFocus(),hf=fp?Math.atan2(fp[0]-e.pos.x,fp[1]-e.pos.z):Math.atan2(grp.house.cx-e.pos.x,grp.house.cz-e.pos.z);let a=hf-e.face;a=Math.atan2(Math.sin(a),Math.cos(a));e.face+=a*Math.min(1,dt*4)}else spd=L.spd||0}
     else if(grp.phase==='visit'){const h=grp.house,rad=Math.max(h.x1-h.x0,h.z1-h.z0)/2+2.6,a=k/9*Math.PI*2+(VISIT_S-grp.t)*.22;tx=h.cx+Math.cos(a)*rad;tz=h.cz+Math.sin(a)*rad;
       spd=steer(e,tx,tz,e.st==='return'?4.5:2.2,dt);e.jump+=dt*7}
     else{const fx=Math.sin(L.face),fz=Math.cos(L.face),sl=SLOTS[(k-1+SLOTS.length)%SLOTS.length];tx=L.pos.x-fx*sl[1]+fz*sl[0];tz=L.pos.z-fz*sl[1]-fx*sl[0];
@@ -539,8 +544,9 @@ function update(dt){
   if(keys.has('a'))ix-=1;if(keys.has('d'))ix+=1;
   if(keys.has('arrowleft'))cam.yaw+=1.8*dt;if(keys.has('arrowright'))cam.yaw-=1.8*dt;
   if(joy.id!==null){ix+=joy.dx;iz+=joy.dy}
+  if(autoRun&&joy.id===null){iz=-1}
   let il=Math.hypot(ix,iz);if(il>1){ix/=il;iz/=il;il=1}
-  const wantRun=(keys.has('shift')||runHeld)&&il>0.2;
+  const wantRun=(keys.has('shift')||runHeld||autoRun||(joy.id!==null&&joy.run))&&il>0.2;
   if(P.stamina<=0)P.tired=true;if(P.tired&&P.stamina>30)P.tired=false;
   const running=wantRun&&!P.tired;P.running=running;
   const spd=(running?R.beh:R.chuze)*il*(P.attack>0?.35:1);
@@ -618,7 +624,8 @@ function updKid(k,dt){k.pos.y=groundH(k.pos.x,k.pos.z)+.08;
     if(k.bubT>0){k.bubT-=dt*1000;if(k.bubT<=0)k.bub.classList.add('hide')}return}
   else{
     if(threat){k.st='flee';k.t=rnd(2,3.5)}
-    if(k.st==='flee'){const tired=k.stamina<=0;spd=tired?CFG.kidUnaveny:CFG.kidBeh;k.stamina=Math.max(0,k.stamina-11*dt);
+    if(k.st==='flee'){const tired=k.stamina<=0;spd=tired?CFG.kidUnaveny:CFG.kidBeh;if(k.dash>0){k.dash-=dt;spd=Math.max(spd,6.2)}   /* po zásahu vystřelí pryč */
+      k.stamina=Math.max(0,k.stamina-11*dt);
       if(tired&&Math.random()<dt*0.6)say(k,'Uf… už nemůžu!',1500);
       moveKid(k,threat?tx:dx,threat?tz:dz,spd,dt);if(k.t<=0&&d>14)k.st='roam'}
     else{k.stamina=Math.min(100,k.stamina+14*dt);
@@ -677,12 +684,16 @@ function resGroup(i){const o=route[i],b=o.b,ob=obyv(b),n=ob.m+ob.z+ob.h+ob.k;if(
 function resPts(G,p){const{cp,E}=G;return [[cp[0]-E.nx*.3,cp[1]-E.nz*.3],[cp[0]+E.nx*.7,cp[1]+E.nz*.7],[p.slot.x,p.slot.z]]}
 function resWalk(p,tx,tz,dt){const dx=tx-p.pos.x,dz=tz-p.pos.z,d=Math.hypot(dx,dz);if(d<.06)return true;const s=Math.min(1.3*dt,d);p.pos.x+=dx/d*s;p.pos.z+=dz/d*s;
   let a=Math.atan2(dx,dz)-p.face;a=Math.atan2(Math.sin(a),Math.cos(a));p.face+=a*Math.min(1,dt*9);p.phase+=s*2.8;return false}
+/* kdo z obyvatel právě mluví (střídají se dospělí, občas dítě) a kam se dívá Mikuláš */
+function resSpeaker(G){const st=G.people.filter(p=>p.st==='stand');if(!st.length)return null;const ad=st.filter(p=>p.k==='m'||p.k==='z'),pool=ad.length?ad.concat(st.length>ad.length?[st[ad.length]]:[]):st;
+  G.talkT=(G.talkT||0);return pool[Math.floor(G.talkT/3.2)%pool.length]}
+function resFocus(){const G=RES.find(G=>G.ri===ri&&!G.dead);if(!G)return null;const sp=resSpeaker(G);return sp?[sp.pos.x,sp.pos.z]:null}
 function clearRes(){for(const G of RES){for(const p of G.people)scene.remove(p.mesh);if(G.door){scene.remove(G.door.piv,G.door.hole)}}RES.length=0}
 function updRes(dt){
   if(grp.phase==='visit'&&route[ri]&&!RES.some(G=>G.ri===ri)){const G=resGroup(ri);if(G)RES.push(G);else RES.push({ri,people:[],dead:true})}
   const L=leader();
   for(let gi=RES.length-1;gi>=0;gi--){const G=RES[gi];if(G.dead){if(G.ri!==ri)RES.splice(gi,1);continue}
-    const active=grp.phase==='visit'&&ri===G.ri;if(!active)G.leave+=dt;let moving=false,inside=0;
+    const active=grp.phase==='visit'&&ri===G.ri;if(!active)G.leave+=dt;else G.talkT=(G.talkT||0)+dt;let moving=false,inside=0;
     for(const p of G.people){const P3=resPts(G,p);p.t+=dt;
       if(active&&p.st==='in'){p.delay-=dt;if(p.delay<=0&&G.open>.6){p.st='out';p.wp=1;p.mesh.visible=true}}
       if(!active&&p.st!=='in'&&p.st!=='back'&&G.leave>1.2+p.delay*.6){p.st='back';p.wp=1}
@@ -690,12 +701,13 @@ function updRes(dt){
       let spd=0;
       if(p.st==='out'){moving=true;if(resWalk(p,P3[p.wp][0],P3[p.wp][1],dt)){if(p.wp<2)p.wp++;else{p.st='stand';p.wave=p.k==='m'||p.k==='z'?1.6:0}}spd=1}
       else if(p.st==='back'){moving=true;if(resWalk(p,P3[p.wp][0],P3[p.wp][1],dt)){if(p.wp>0)p.wp--;else{p.st='in';p.mesh.visible=false}}spd=1}
-      else if(p.st==='stand'){const tx=L?L.pos.x:G.cp[0]+G.E.nx*3,tz=L?L.pos.z:G.cp[1]+G.E.nz*3;let a=Math.atan2(tx-p.pos.x,tz-p.pos.z)-p.face;a=Math.atan2(Math.sin(a),Math.cos(a));p.face+=a*Math.min(1,dt*3)}
+      else if(p.st==='stand'){const tx=L?L.pos.x:G.cp[0]+G.E.nx*3,tz=L?L.pos.z:G.cp[1]+G.E.nz*3;p.talk=active&&p===resSpeaker(G)&&L&&Math.hypot(L.pos.x-p.pos.x,L.pos.z-p.pos.z)<5;let a=Math.atan2(tx-p.pos.x,tz-p.pos.z)-p.face;a=Math.atan2(Math.sin(a),Math.cos(a));p.face+=a*Math.min(1,dt*3)}
       if(p.st==='in')inside++;
       const u=p.mesh.userData;p.pos.y=groundH(p.pos.x,p.pos.z);
       let hop=0;if(p.st==='stand'){
         if(p.wave>0){p.wave-=dt;u.armR.rotation.x=-2.6;u.armR.rotation.z=Math.sin(p.t*9)*.35;if(p.wave<=0){u.armR.rotation.x=0;u.armR.rotation.z=0}}
-        else{u.armL.rotation.x=u.armR.rotation.x=Math.sin(p.t*1.3)*.05}
+        else if(p.talk){/* mluví s Mikulášem: gestikuluje */const g=Math.sin(p.t*3.1),h2=Math.sin(p.t*2.3+1);u.armR.rotation.x=-.55-.35*Math.max(0,g);u.armR.rotation.z=.15*h2;u.armL.rotation.x=-.25-.25*Math.max(0,-g);u.armL.rotation.z=0}
+        else{u.armL.rotation.x=u.armR.rotation.x=Math.sin(p.t*1.3)*.05;u.armL.rotation.z=u.armR.rotation.z=0}
         if(p.k==='h'||p.k==='k'){/* děti poskakují, když je blízko strašící člen družiny */const sc=ents.some(e=>e.role!=='mikulas'&&(e.scareT>0||grp.phase==='visit'&&e.st2>0)&&Math.hypot(e.pos.x-p.pos.x,e.pos.z-p.pos.z)<4);
           if(sc)hop=Math.abs(Math.sin(p.t*7))*.12}
         u.legL.rotation.x=u.legR.rotation.x=0}
@@ -777,7 +789,7 @@ charMenu();opts($('oSide'),STRANY,selSide,v=>selSide=v);
 $('keysPC').classList.toggle('hide',isTouch);$('keysTouch').classList.toggle('hide',!isTouch);
 function showBest(el){const b=store('obchuzka-rekord');el.textContent=b?`Tvůj rekord: ${b} bodů`:''}
 showBest($('best'));
-function start(){resetGame();state='play';navNear=false;setMapBig(false);$('menu').classList.add('hide');$('end').classList.add('hide');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
+function start(){resetGame();state='play';setAuto(false);navNear=false;setMapBig(false);$('menu').classList.add('hide');$('end').classList.add('hide');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
   toast(player.role==='mikulas'?'Jsi Mikuláš – veď družinu k domům se žlutým světlem.':'Drž se družiny u domů a chytej napalovače!',3500);last=performance.now();
   if(isTouch&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{})}
 $('bStart').onclick=start;$('bAgain').onclick=start;
@@ -786,7 +798,7 @@ $('bPause').onclick=()=>pause(true);$('bResume').onclick=()=>pause(false);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause(true)});
 $('bEnd').onclick=()=>{if(NET.on)NET.leave('Odešel jsi ze hry.');else finish(false)};
 function gameOver(timeUp,done){if(NET.on&&NET.host){NET.endGame(timeUp?'time':done?'done':'stop');return}finish(timeUp,done)}
-function finish(timeUp,done){state='end';$('bAgain').textContent='Hrát znovu';navArrow.visible=false;setMapBig(false);keys.clear();runHeld=false;$('ui').classList.add('hide');$('end').classList.remove('hide');
+function finish(timeUp,done){state='end';setAuto(false);$('bAgain').textContent='Hrát znovu';navArrow.visible=false;setMapBig(false);keys.clear();runHeld=false;$('ui').classList.add('hide');$('end').classList.remove('hide');
   for(const k of kids)k.bub.classList.add('hide');
   $('endT').textContent=done?'Strana obejitá!':timeUp?'Čas vypršel':'Obchůzka skončila';
   const used=CFG.limit-Math.max(0,timeLeft),m=Math.floor(used/60),s=Math.floor(used%60);
