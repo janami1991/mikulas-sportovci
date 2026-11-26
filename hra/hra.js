@@ -1369,9 +1369,11 @@ const ZEB={st:null,saved:null,busy:false};
 const zesc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const zebScr=id=>{for(const x of['menu','sp','end','zebS'])$(x).classList.toggle('hide',x!==id);if($('mp'))$('mp').classList.add('hide')};
 const zebOn=()=>!!(window.DB&&DB.configured&&DB.topScores);
-const zebRow=(z,i,me)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span></span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
-async function zebLoad(el,n){if(!zebOn()){el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček teď není dostupný.</span>';return}
-  try{const L=await DB.topScores(n||10);el.innerHTML=L.length?`<span class="h"></span><span class="h">Hráč</span><span class="h"></span><span class="h" style="text-align:right">Body</span>`+L.map((z,i)=>zebRow(z,i,z.id===ZEB.saved)).join(''):'<span class="h" style="grid-column:1/-1">Zatím tu nikdo není – buď první!</span>'}
+const zebAdm=()=>{try{const m=window.DB&&DB.me&&DB.me();return !!(m&&m.role===3)}catch(e){return false}};
+const zebRow=(z,i,me,del)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span>${del?` <button type="button" class="zdel" data-zdel="${zesc(z.id)}" title="Smazat záznam (správce)">✕</button>`:''}</span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
+async function zebLoad(el,n,del){if(!zebOn()){el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček teď není dostupný.</span>';return}
+  try{const L=await DB.topScores(n||10);el.innerHTML=L.length?`<span class="h"></span><span class="h">Hráč</span><span class="h"></span><span class="h" style="text-align:right">Body</span>`+L.map((z,i)=>zebRow(z,i,z.id===ZEB.saved,del&&zebAdm())).join(''):'<span class="h" style="grid-column:1/-1">Zatím tu nikdo není – buď první!</span>';
+    el.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Smazat?';return}b.disabled=true;try{await DB.delScore(b.dataset.zdel);zebLoad(el,n,del)}catch(e){console.warn(e);b.textContent='Nepovedlo se'}})}
   catch(e){console.warn(e);el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček se nenačetl.</span>'}}
 /* konec hry: nabídne zápis a ukáže prvních 10 */
 function zebEnd(st,name){ZEB.st=st;ZEB.saved=null;const ok=zebOn()&&st.s>0;$('zebW').classList.toggle('hide',!ok);$('zebMsg').textContent='';$('zebSave').disabled=false;
@@ -1381,7 +1383,7 @@ $('zebSave').onclick=async()=>{if(ZEB.busy||!ZEB.st||ZEB.saved)return;const n=$(
   try{ZEB.saved=await DB.addScore({n,r:ZEB.st.r,s:Math.round(ZEB.st.s),h:ZEB.st.h|0,c:ZEB.st.c|0,p:ZEB.st.p|0,mp:!!ZEB.st.mp});$('zebMsg').textContent='Zapsáno.';$('zebSave').disabled=true;$('zebW').classList.add('hide');zebLoad($('zebEnd'),10)}
   catch(e){console.warn(e);$('zebMsg').textContent='Zápis se nepovedl.'}ZEB.busy=false};
 $('zebName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')$('zebSave').click()});
-$('bZeb').onclick=()=>{zebScr('zebS');zebLoad($('zebList'),20)};
+$('bZeb').onclick=()=>{zebScr('zebS');zebLoad($('zebList'),20,true)};
 $('zebBack').onclick=()=>zebScr('menu');
 $('bSingle').onclick=()=>zebScr('sp');$('spBack').onclick=()=>zebScr('menu');
 

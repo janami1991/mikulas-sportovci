@@ -60,11 +60,6 @@ nav.menu a[aria-current=page]{color:#fff;box-shadow:inset 0 -2px 0 #fff;border-r
 main{max-width:688px;margin:0 auto;padding:24px max(4vw,14px) 60px;display:grid;gap:16px}
 .vh{font-size:30px}
 .members{display:grid;gap:10px}
-.zeb{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:6px 14px;align-items:baseline}
-.zeb .h{font-size:13px;color:var(--mute)}
-.zeb .r{font-size:13px;color:var(--mute)}
-.zeb b{text-align:right}
-.zeb .x{border:0;background:none;color:var(--mute);cursor:pointer;font-size:13px}
 .mem{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
 .mem .t{font-size:13px;color:var(--mute)}
 .mem{cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}.mem:hover{border-color:#999}
@@ -215,7 +210,7 @@ img[data-mid]:not([src]){min-height:120px;background:#e9e9e9}
  <header class="top">
   <h2>MIKULÁŠ SPORTOVCI</h2>
   <nav class="menu" id="menu" aria-label="Hlavní menu">
-   <a href="#nastenka">Nástěnka</a><a href="#fotky">Fotky</a><a href="#videa">Videa</a><a href="#udalosti">Události</a><a href="#clenove">Členové</a><a href="#kronika">Kronika</a><a href="#zebricek">Žebříček</a><a href="hra/index.html">Hra</a>
+   <a href="#nastenka">Nástěnka</a><a href="#fotky">Fotky</a><a href="#videa">Videa</a><a href="#udalosti">Události</a><a href="#clenove">Členové</a><a href="#kronika">Kronika</a><a href="hra/index.html">Hra</a>
   </nav>
   <div class="who"><a href="#profil" id="whoName" style="color:#fff;text-decoration:none;display:flex;align-items:center;gap:8px"></a><span id="whoGuest"></span><button class="btn" id="out">Odhlásit</button></div>
  </header>
@@ -241,7 +236,6 @@ img[data-mid]:not([src]){min-height:120px;background:#e9e9e9}
    <div id="posts" class="feed"></div>
    <div id="members" class="members hide"></div>
    <div id="profil" class="hide"></div>
-   <div id="zebricek" class="box hide"></div>
    <div id="kronika" class="hide">
     <button class="btn p hide" id="krNew" type="button">Nový zápis do kroniky</button>
     <form class="box krf hide" id="krForm">
@@ -368,7 +362,7 @@ $('out').onclick=async()=>{await DB.logout();me=null;MEMS={};$('app').classList.
  const m=await DB.whenReady();if(m)enter(m);
 })();
 
-const VIEWS={nastenka:['Nástěnka','all'],fotky:['Fotky','photo'],videa:['Videa','video'],udalosti:['Události','event'],clenove:['Členové',null],kronika:['Kronika',null],zebricek:['Žebříček hry',null],profil:['Můj profil',null]};
+const VIEWS={nastenka:['Nástěnka','all'],fotky:['Fotky','photo'],videa:['Videa','video'],udalosti:['Události','event'],clenove:['Členové',null],kronika:['Kronika',null],profil:['Můj profil',null]};
 let view='nastenka';
 function route(){
  view=VIEWS[location.hash.slice(1)]?location.hash.slice(1):'nastenka';
@@ -376,8 +370,8 @@ function route(){
  if(view!=='clenove')selMem=null;if(view!=='profil')editId=null;
  ftype=VIEWS[view][1];$('vtitle').textContent=VIEWS[view][0];
  document.querySelectorAll('#menu a').forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+view)&&a.setAttribute('aria-current','page'));
- const mem=view==='clenove',kr=view==='kronika',pr=view==='profil',zb=view==='zebricek',other=mem||kr||pr||zb;
- $('members').classList.toggle('hide',!mem);$('profil').classList.toggle('hide',!pr);$('q').classList.toggle('hide',pr||zb);$('kronika').classList.toggle('hide',!kr);$('zebricek').classList.toggle('hide',!zb);$('posts').classList.toggle('hide',other);
+ const mem=view==='clenove',kr=view==='kronika',pr=view==='profil',other=mem||kr||pr;
+ $('members').classList.toggle('hide',!mem);$('profil').classList.toggle('hide',!pr);$('q').classList.toggle('hide',pr);$('kronika').classList.toggle('hide',!kr);$('posts').classList.toggle('hide',other);
  composeClose();$('cNew').classList.toggle('hide',!me||other);$('guestLock').classList.toggle('hide',!!me||other);
  $('krNew').classList.toggle('hide',role()<3);if(!kr||role()<3)$('krForm').classList.add('hide');
  $('q').placeholder=mem?'Hledat člena':kr?'Hledat v kronice':'Hledat v příspěvcích';
@@ -690,18 +684,10 @@ $('kronika').addEventListener('click',async e=>{
  if(b.dataset.kd){const id=b.dataset.kd;if(krDel!==id){krDel=id;b.textContent='Opravdu smazat?';return}
   try{const k=KR.find(x=>x.id===id);await DB.delKr(id);await DB.delMedia(mids(k.html));KR=KR.filter(x=>x.id!==id);krDel=null;render()}catch(err){fail(err)}}
 });
-/* žebříček hry (prvních 50; správce může záznam smazat) */
-async function renderZeb(){const el=$('zebricek');el.innerHTML='<p class="note">Načítám…</p>';
- try{const L=await DB.topScores(50),RN={mikulas:'Mikuláš',cert:'Čert',smrtka:'Smrtka',konik:'Koník',prda:'Prďa',napalovac:'Napalovač'},adm=role()>=3;
-  el.innerHTML=`<p class="note" style="margin-top:0">Nejlepší výsledky Mikulášské obchůzky. <a href="hra/index.html">Hrát</a></p>`+(L.length?`<div class="zeb"><span class="h"></span><span class="h">Hráč</span><span class="h">Domy</span><span class="h" style="text-align:right">Body</span><span></span>`+
-   L.map((z,i)=>{const d=z.ts?new Date(z.ts):null;return `<span>${i+1}.</span><span>${esc(z.n)} <span class="r">${RN[z.r]||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span></span><span class="r">${z.h}</span><b>${z.s}</b><span>${adm?`<button class="x" data-zdel="${esc(z.id)}" type="button" title="Smazat">Smazat</button>`:''}</span>`}).join('')+'</div>':'<p>Zatím tu nikdo není.</p>');
-  el.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Smazat záznam ze žebříčku?'))return;try{await DB.delScore(b.dataset.zdel);renderZeb()}catch(e){alert('Smazání se nepovedlo.')}})}
- catch(e){console.warn(e);el.innerHTML='<p class="note">Žebříček se nenačetl.</p>'}}
 function render(){
  const q=$('q').value.trim().toLowerCase();
  if(view==='kronika'){renderKr(q);return}
  if(view==='profil'){renderProfil();return}
- if(view==='zebricek'){renderZeb();return}
  if(view==='clenove'){
   if(!me){$('members').innerHTML='';return}
   if(selMem&&MEMS[selMem]){$('members').innerHTML=(flash?`<div class="lock">${esc(flash)}</div>`:'')+memDetail(selMem);flash='';return}
