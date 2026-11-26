@@ -980,7 +980,7 @@ charMenu();opts($('oSide'),STRANY,selSide,v=>selSide=v);
 $('keysPC').classList.toggle('hide',isTouch);$('keysTouch').classList.toggle('hide',!isTouch);
 function showBest(el){const b=store('obchuzka-rekord');el.textContent=b?`Tvůj rekord: ${b} bodů`:''}
 showBest($('best'));
-function start(){resetGame();state='play';setAuto(false);navNear=false;setMapBig(false);$('menu').classList.add('hide');$('end').classList.add('hide');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
+function start(){resetGame();state='play';setAuto(false);navNear=false;setMapBig(false);$('menu').classList.add('hide');$('sp').classList.add('hide');$('end').classList.add('hide');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
   toast(player.role==='mikulas'?'Jsi Mikuláš – veď družinu k domům se žlutým světlem.':(player.role==='cert'?'Drž se družiny, chytej napalovače, zaháněj psy. Popelnici u domu zvedneš a hodíš (F).':'Drž se družiny u domů, chytej napalovače a zaháněj psy!'),3500);last=performance.now();
   if(isTouch&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{})}
 $('bStart').onclick=start;$('bAgain').onclick=start;
@@ -1002,7 +1002,7 @@ function finish(timeUp,done){state='end';$('pause').classList.add('hide');setAut
 /* ===================== ŽEBŘÍČEK (databáze, zapíše se kdokoliv s přezdívkou) ===================== */
 const ZEB={st:null,saved:null,busy:false};
 const zesc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const zebScr=id=>{for(const x of['menu','end','zebS'])$(x).classList.toggle('hide',x!==id);if($('mp'))$('mp').classList.add('hide')};
+const zebScr=id=>{for(const x of['menu','sp','end','zebS'])$(x).classList.toggle('hide',x!==id);if($('mp'))$('mp').classList.add('hide')};
 const zebOn=()=>!!(window.DB&&DB.configured&&DB.topScores);
 const zebRow=(z,i,me)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span></span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
 async function zebLoad(el,n){if(!zebOn()){el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček teď není dostupný.</span>';return}
@@ -1018,6 +1018,7 @@ $('zebSave').onclick=async()=>{if(ZEB.busy||!ZEB.st||ZEB.saved)return;const n=$(
 $('zebName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')$('zebSave').click()});
 $('bZeb').onclick=()=>{zebScr('zebS');zebLoad($('zebList'),20)};
 $('zebBack').onclick=()=>zebScr('menu');
+$('bSingle').onclick=()=>zebScr('sp');$('spBack').onclick=()=>zebScr('menu');
 
 /* ===================== SMYČKA ===================== */
 let last=performance.now();

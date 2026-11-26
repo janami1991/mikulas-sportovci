@@ -73,6 +73,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .big:hover{background:#e6e6e6}
 .links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .links.one{grid-template-columns:1fr}
+.mbtns{display:grid;gap:12px}
 .big2{min-height:52px;border-radius:10px;border:2px solid #fff;color:#fff;font-weight:700;font-size:17px;display:grid;place-items:center;text-align:center;text-decoration:none;padding:6px 10px}
 .big2:hover{background:rgba(255,255,255,.12)}
 @media(max-width:420px){.links{grid-template-columns:1fr}}
@@ -159,18 +160,28 @@ button.big2{background:transparent}
 <div class="screen" id="menu">
  <div class="card">
   <h1>Mikulášská obchůzka<br>Lidečko</h1>
+  <div class="mbtns">
+   <button class="big2" id="bSingle" type="button">Jeden hráč</button>
+   <button class="big2" id="bMulti" type="button">Více hráčů</button>
+   <button class="big2" id="bZeb" type="button">Žebříček nejlepších</button>
+   <a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a>
+   <a class="big2" href="../index.html">Konec</a>
+  </div>
+ </div>
+</div>
+
+<div class="screen hide" id="sp">
+ <div class="card">
+  <h1>Jeden hráč</h1>
   <p>Jdi s družinou od domu k domu. Body za dům dostaneš, jen když jsi u něj s ostatními – u domu straš a mezi domy chytej napalovače. Vzhled postav kromě čerta je zatím provizorní.</p>
-  <button class="big2" id="bMulti" type="button">Hrát s ostatními (více hráčů)</button>
-  <div class="lbl" style="margin-bottom:-8px">nebo hraj sám:</div>
   <div><div class="lbl">Postava</div><div class="opts" id="oChar"></div></div>
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
-  <button class="big" id="bStart" type="button">Hrát sám</button>
-  <button class="big2" id="bZeb" type="button">Žebříček nejlepších</button>
+  <button class="big" id="bStart" type="button">Hrát</button>
   <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>B</b> kolo · <b>myš (tažení)</b> otáčení kamery</div>
   <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>. Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
-  <div class="links one" id="menuLinks"><a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a><a class="big2" href="../index.html">← Zpět na web</a></div>
+  <button class="big2" id="spBack" type="button">← Zpět do menu</button>
  </div>
 </div>
 
@@ -241,7 +252,7 @@ try{db=await import('../db.js');window.DB=db;
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
 await load('svet.js');await load('hra.js');await load('mp.js');load('zvuky.js').catch(()=>{});
 /* odkaz na editor mapy vidí jen správci */
-if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3){document.getElementById('lEditor').classList.remove('hide');document.getElementById('menuLinks').classList.remove('one')}}).catch(()=>{});
+if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3)document.getElementById('lEditor').classList.remove('hide')}).catch(()=>{});
 </script>
 </body>
 </html>

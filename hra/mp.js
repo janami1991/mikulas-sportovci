@@ -24,7 +24,7 @@ NET.endGame=reason=>{NET.send({t:'end',reason,board:NET.board});showEnd(reason)}
 NET.leave=msg=>{const was=NET.on&&state==='play';disconnect();if(was)showEnd('left',msg);else showScreen('menu')};
 
 /* ---------- obrazovky ---------- */
-function showScreen(id){for(const s of['menu','mp','end','zebS'])$(s).classList.toggle('hide',s!==id);if(id!=='end')$('ui').classList.add('hide')}
+function showScreen(id){for(const s of['menu','sp','mp','end','zebS'])$(s).classList.toggle('hide',s!==id);if(id!=='end')$('ui').classList.add('hide')}
 function mpMsg(t){$('mpMsg').textContent=t||''}
 /* červená hláška pod tlačítkem „Vyjít na stranu“ */
 let errT=0;function mpErr(t,hl){const e=$('mpErr');e.textContent=t||'';e.classList.toggle('hide',!t);clearTimeout(errT);
