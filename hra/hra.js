@@ -1300,8 +1300,28 @@ function updNav(){const P=player;if(!navOn||!P){navArrow.visible=false;return}
 /* ===================== MENU / KONEC ===================== */
 let selChar=store('obchuzka-postava')||'cert',selSide='polnak',selVar=+store('obchuzka-cert')||1;
 if(!POSTAVY.some(p=>p.id===selChar&&!p.off))selChar='cert';
-function opts(el,list,sel,cb,img,offCb){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?(offCb?'aria-disabled="true"':'disabled'):''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}</button>`).join('');
-  el.onclick=e=>{const b=e.target.closest('.opt');if(!b||b.disabled)return;if(b.getAttribute('aria-disabled')==='true'){if(offCb)offCb(b.dataset.id);return}cb(b.dataset.id);el.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b))}}
+/* (i) u postav: účel a schopnosti (číselné údaje odpovídají ROLE, CFG, NAP) */
+const SPOL=`<li>Přemoženého (ležícího) napalovače zvedne <b>F</b> a nosí nad hlavou nejvýš 30 s; <b>F / Mezerník</b> = hodit. Zásah jiného napalovače = <b>kombo +15</b>.</li><li>Na kolo u domu nasedne <b>B</b>.</li>`;
+const BODY_D=`<li>Dům s družinou <b>+10</b>, strašení <b>+3</b> (4× na dům), přemožený napalovač <b>+25</b>, zahnaný pes <b>+13</b>.</li>`;
+const POSTAVA_INFO={
+  cert:{u:'Chrání družinu před napalovači a u domů straší.',s:`<li><b>Nejsilnější rána</b>: napalovače složí 5 ranami (ostatní 8), psa 3 (ostatní 4).</li><li><b>Popelnice</b>: <b>F</b> zvedne, <b>F / Mezerník</b> hodí; zásah = 2 rány čerta.</li><li>Na stojící vlečku traktoru naskočí <b>B</b>.</li><li>Při běhu se unaví nejrychleji z družiny (kromě Mikuláše).</li>${SPOL}`,b:BODY_D},
+  prda:{u:'Rychlý pomocník družiny – honí napalovače a u domů straší.',s:`<li>Rychlý a s dlouhou výdrží při běhu.</li><li>Napalovači se ho bojí už z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
+  konik:{u:'Nejrychlejší člen družiny – dožene utíkající napalovače.',s:`<li><b>Nejrychlejší běh</b> a dlouhá výdrž.</li><li>Útok = seknutí šavlí do kříže; u domu (Q) točí šavlí.</li><li>Napalovači se ho bojí z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
+  smrtka:{u:'Drží napalovače od družiny dlouhou kosou.',s:`<li><b>Nejdelší dosah</b> úderu kosou (3,4 m).</li><li>U domu (Q) klepe na kosu.</li><li>Napalovači se jí bojí z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
+  mikulas:{u:'Vede družinu od domu k domu (dům se žlutým světlem) a u dveří mluví s dětmi.',s:`<li>Od vyrážení k dalšímu domu má 30 s, aby došel ke dveřím domu, jinak jde družina sama: <b>−5</b> a body za dům nedostane.</li><li>U domu se ptá dětí (<b>1–3</b>), pak dá nadílku (<b>Q / N</b>).</li><li><b>Bonbony</b>: Mezerník držet = mířit, pustit = hodit.</li><li>Nepere se; napalovači se ho nebojí.</li><li>Nejpomalejší běh a nejkratší výdrž.</li>${SPOL}`,b:`<li>Dům <b>+5</b>, pochválit děti <b>+1</b> (2× na dům), nadílka <b>+2</b>, bonbon do napalovače <b>+2</b>, kombo <b>+15</b>.</li>`},
+  napalovac:{u:'Zlobí družinu – hází koule, krade nadílku a nesmí se nechat chytit.',s:`<li><b>Koule</b>: Mezerník držet = mířit (5–18 m), pustit = hodit.</li><li><b>Q</b> u Mikuláše při návštěvě domu = ukrást nadílku (1× za 60 s); pak ho honí 3 masky.</li><li><b>Q</b> u čerta = zazvonit mu zvonci (stejný čert 1× za 20 s).</li><li>Když ho družina chytí, objeví se za 5 s jinde.</li><li>Za domy body nedostává; psi si ho nevšímají.</li>`,b:`<li>Zásah masky koulí <b>+3</b>, ukradená nadílka <b>+10</b>, zvonce <b>+5</b>, chycení <b>−20</b>.</li>`},
+};
+function showInfo(id){const I=POSTAVA_INFO[id],R=ROLE[id];if(!I)return;let box=$('infBox');
+  if(!box){box=document.createElement('div');box.id='infBox';box.innerHTML='<div class="infIn" role="dialog" aria-modal="true"><button type="button" class="infX" aria-label="Zavřít">✕</button><h3></h3><div class="infT"></div></div>';document.body.appendChild(box);
+    box.onclick=e=>{if(e.target===box||e.target.closest('.infX'))box.classList.add('hide')};
+    addEventListener('keydown',e=>{if(e.key==='Escape'&&!box.classList.contains('hide')){e.stopPropagation();box.classList.add('hide')}},true)}
+  const f=v=>String(v).replace('.',',');
+  box.querySelector('h3').textContent=R.n;
+  box.querySelector('.infT').innerHTML=`<p>${I.u}</p><h4>Schopnosti</h4><ul><li>Chůze ${f(R.chuze)} m/s, běh ${f(R.beh)} m/s.</li>${I.s}</ul><h4>Body</h4><ul>${I.b}</ul>`;
+  box.classList.remove('hide');box.querySelector('.infX').focus()}
+function opts(el,list,sel,cb,img,offCb){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?(offCb?'aria-disabled="true"':'disabled'):''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}${img&&POSTAVA_INFO[o.id]?`<span class="inf" data-inf="${o.id}" role="button" tabindex="0" aria-label="Co umí ${o.n}" title="Co umí">i</span>`:''}</button>`).join('');
+  el.onkeydown=e=>{const i=e.target.closest&&e.target.closest('.inf');if(i&&(e.key==='Enter'||e.key===' ')){e.preventDefault();e.stopPropagation();showInfo(i.dataset.inf)}};
+  el.onclick=e=>{const i=e.target.closest('.inf');if(i){e.preventDefault();e.stopPropagation();showInfo(i.dataset.inf);return}const b=e.target.closest('.opt');if(!b||b.disabled)return;if(b.getAttribute('aria-disabled')==='true'){if(offCb)offCb(b.dataset.id);return}cb(b.dataset.id);el.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b))}}
 /* miniatury postav: vykreslí se jednou po načtení (celá postava, u čertů detail hlavy) */
 const thumbs=(()=>{let r=null;const cache={};
   return (key)=>{if(cache[key])return cache[key];const[role,v,head]=key.split(':');
@@ -1372,6 +1392,6 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-last)
   else if(state==='menu'||state==='end'){const t=now/9000;const s=M.start||[0,0];camera.position.set(s[0]+Math.sin(t)*70,45+gy(s[0],s[1]+130),s[1]+130+Math.cos(t)*70);camera.lookAt(s[0],gy(s[0],s[1]+130),s[1]+130)}
   renderer.render(scene,camera)}
 $('loading').remove();requestAnimationFrame(loop);
-window.__hra={grabKey,nesPick,NES,get otz(){return otz},otzAsk,otzGive,candyHit,NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},nballs,aimStart,aimRelease,napAction,hitNap,get napSt(){return napSt},tractors,trakKey,dogs,bins,binKey,hitDog,bikes,bikeKey,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
+window.__hra={showInfo,grabKey,nesPick,NES,get otz(){return otz},otzAsk,otzGive,candyHit,NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},nballs,aimStart,aimRelease,napAction,hitNap,get napSt(){return napSt},tractors,trakKey,dogs,bins,binKey,hitDog,bikes,bikeKey,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
   setChar:v=>{selChar=v},setTime:v=>{timeLeft=v},step:n=>{for(let i=0;i<n&&state==='play';i++)update(.05)},get timeLeft(){return timeLeft}};
 

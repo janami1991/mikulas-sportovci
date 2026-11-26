@@ -70,6 +70,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .err{color:#ff4d4d;font-weight:700;font-size:16px;text-align:center}
 .opts.need{animation:need .6s;outline:2px solid #ff4d4d;outline-offset:4px;border-radius:10px}
 @keyframes need{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.opt.pic{position:relative}
+.opt .inf{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.75);color:#fff;background:rgba(0,0,0,.45);font:italic 700 14px/21px Georgia,serif;text-align:center;cursor:pointer}
+.opt .inf:hover,.opt .inf:focus-visible{background:#fff;color:#111;outline:none}
+.opt[aria-pressed=true] .inf{border-color:#111;color:#111;background:rgba(255,255,255,.7)}
+#infBox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+#infBox.hide{display:none}
+#infBox .infIn{position:relative;width:min(440px,100%);max-height:90vh;overflow:auto;background:#141414;color:#eee;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:18px 20px;text-align:left;font-size:14px;line-height:1.45}
+#infBox h3{margin:0 30px 8px 0;font-size:20px}
+#infBox h4{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#a0a0a0}
+#infBox p{margin:0}#infBox ul{margin:0;padding-left:18px}#infBox li{margin:3px 0}
+#infBox .infX{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:none;color:#fff;font-size:15px;cursor:pointer}
 .opt.pic{padding:6px 6px 8px;font-size:15px;font-weight:600}
 .opt.pic img{display:block;width:100%;aspect-ratio:4/5;object-fit:contain;margin:0 auto 4px;border-radius:8px;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.16),rgba(255,255,255,0) 70%)}
 .opt.pic[aria-pressed=true] img{background:radial-gradient(circle at 50% 40%,#fff,#dcdcdc 75%)}
