@@ -326,14 +326,14 @@ function spTeam(){const cv=[1,2,3,4,5].filter(v=>!(selChar==='cert'&&v===selVar)
 function resetGame(team){
   for(const e of ents)scene.remove(e.mesh);for(const k of kids){scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}for(const b of balls)scene.remove(b.m);
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(6,12);
-  clearRes();clearBins();clearBikes();ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;dogsN=0;timeLeft=CFG.limit;ri=0;
+  clearRes();clearBins();clearBikes();clearTractors();ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;dogsN=0;timeLeft=CFG.limit;ri=0;
   const s=M.start||[0,0];player=null;
   /* čerti v družině mají každý jiný vzhled; hráč-čert ten, který si vybral */
   team=team||spTeam();
   team.forEach((t,i)=>{const e=addEnt(t,i,team.length);if(t.x===undefined){const a=i/team.length*Math.PI*2;e.pos.set(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(e.pos,.45)}});
   if(!player)player=ents[0];
   player.face=Math.PI;cam.yaw=Math.PI;cam.cur=undefined;
-  route=makeRoute(s[0],s[1]);setMarks();planTo(0);makeDogs();makeBins();makeBikes();
+  route=makeRoute(s[0],s[1]);setMarks();planTo(0);makeDogs();makeBins();makeBikes();makeTractors();
   if(isHost()){const n=CFG.napalovacu+(NET.on?Math.floor((humans().length-1)*.77):0);for(let i=0;i<n;i++)kids.push(newKid(i))}
   $('hHousesT').textContent=route.length;$('tScare').textContent=ROLE[player.role].akce;updHud();
 }
@@ -345,7 +345,7 @@ function addEnt(t,i){const me=NET.on?NET.me:'me',isP=t.pid!=null&&t.pid===me;con
 /* ===================== OVLÁDÁNÍ ===================== */
 const keys=new Set();
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys.add(k);if(state!=='play')return;
-  if(k===' '||k==='j'){e.preventDefault();offBike();if(player.carry)binKey();else attack(player)}if(k==='f'){offBike();binKey()}if(k==='b')bikeKey();if(k==='q'||k==='e'){offBike();scare()}if(k==='r'){setAuto(!autoRun);toast(autoRun?'Automatický běh (R nebo S = stop)':'Automatický běh vypnut',1200)}if(k==='s'||k==='arrowdown')setAuto(false);if(k==='escape'||k==='p')pause(true)});
+  if(k===' '||k==='j'){e.preventDefault();offBike();if(player.carry)binKey();else attack(player)}if(k==='f'){offBike();binKey()}if(k==='b'){if(!trakKey())bikeKey()}if(k==='q'||k==='e'){offBike();scare()}if(k==='r'){setAuto(!autoRun);toast(autoRun?'Automatický běh (R nebo S = stop)':'Automatický běh vypnut',1200)}if(k==='s'||k==='arrowdown')setAuto(false);if(k==='escape'||k==='p')pause(true)});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 const joy={id:null,x:0,y:0,dx:0,dy:0,run:false,lock:false},look={id:null,x:0,y:0};let runHeld=false,autoRun=false;
 function setAuto(on){autoRun=on;$('autoRun').classList.toggle('hide',!on)}
@@ -365,7 +365,7 @@ canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercanc
 canvas.addEventListener('wheel',e=>{cam.dist=clamp(cam.dist+e.deltaY*0.01,4,14)},{passive:true});
 const tb=(id,down,up)=>{const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();b.classList.add('on');down()});
   const u=e=>{b.classList.remove('on');up&&up()};b.addEventListener('pointerup',u);b.addEventListener('pointercancel',u);b.addEventListener('pointerleave',u)};
-tb('tHit',()=>{offBike();if(player.carry)binKey();else attack(player)});tb('tBin',()=>{offBike();binKey()});tb('tKolo',()=>bikeKey());tb('tRun',()=>{runHeld=true;setAuto(false)},()=>runHeld=false);
+tb('tHit',()=>{offBike();if(player.carry)binKey();else attack(player)});tb('tBin',()=>{offBike();binKey()});tb('tKolo',()=>{if(!trakKey())bikeKey()});tb('tRun',()=>{runHeld=true;setAuto(false)},()=>runHeld=false);
 $('autoRun').addEventListener('pointerdown',e=>{e.preventDefault();setAuto(false)});tb('tScare',()=>{offBike();scare()});
 addEventListener('contextmenu',e=>e.preventDefault());
 
@@ -527,6 +527,104 @@ function updCars(dt){carT-=dt;if(carT<=0){if(cars.length<CFG.aut)spawnCar();carT
     for(const o of ents.concat(kids)){const ox=o.pos.x-c.pos.x,oz=o.pos.z-c.pos.z,lz=ox*fx+oz*fz,lx=ox*fz-oz*fx;
       if(Math.abs(lz)<2.6&&Math.abs(lx)<1.3){const push=(1.4-Math.abs(lx))*(lx<0?-1:1);o.pos.x+=fz*push;o.pos.z-=fx*push}}}}
 
+
+/* ===================== TRAKTORY (2 červené: jeden s radlicí vzadu ohrnuje sníh, druhý s vlečkou vozí čerty) ===================== */
+/* jezdí pořád po silnicích na straně; zastaví, když mu někdo stojí v cestě. Stojící traktor s vlečkou: čert naskočí (B), vlečka ho veze, B = seskočit */
+const TRAK={spd:4.2,slots:[[-.45,-.55],[.45,-.55],[-.45,.25],[.45,.25],[-.45,1.05],[.45,1.05],[0,-.15],[0,.65]]};
+function makeTractor(kind){const g=new THREE.Group(),red=lam(0xc62828),dk=lam(0x1a1a1a),gr=lam(0x6b6b6b),gl=lam(0x22303a),yel=lam(0xffe08a);
+  const wh=(r,w,x,y,z)=>{const m=new THREE.Group();m.position.set(x,y,z);const t=new THREE.Mesh(new THREE.CylinderGeometry(r,r,w,16),dk);t.rotation.z=Math.PI/2;
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(r*.55,r*.55,w+.02,10),red);h.rotation.z=Math.PI/2;m.add(t,h);return m};
+  const wheels=[wh(.62,.42,-.78,.62,-.55),wh(.62,.42,.78,.62,-.55),wh(.36,.26,-.66,.36,1.25),wh(.36,.26,.66,.36,1.25)];g.add(...wheels);
+  g.add(box(.9,.55,1.1,dk,0,.75,.75),box(.92,.7,1.5,red,0,1.15,.95),box(.96,.12,.2,dk,0,1.05,1.72),box(.15,.1,.05,yel,-.32,1.25,1.71),box(.15,.1,.05,yel,.32,1.25,1.71));
+  g.add(box(1.2,.35,1.3,red,0,.95,-.45),box(1.75,.08,.7,red,0,1.3,-.55));            /* tělo a blatníky */
+  const cab=new THREE.Group();cab.position.set(0,1.1,-.5);g.add(cab);
+  for(const x of[-.58,.58])for(const z of[-.6,.5])cab.add(box(.06,1.15,.06,dk,x,.6,z));
+  cab.add(box(1.24,.08,1.3,red,0,1.2,-.05),box(1.1,.95,.02,gl,0,.6,.5),box(1.1,.95,.02,gl,0,.6,-.6),box(.02,.85,1,gl,-.58,.62,-.05),box(.02,.85,1,gl,.58,.62,-.05),box(.5,.12,.45,dk,0,.25,-.15));
+  const ex=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.9,8),dk);ex.position.set(.36,1.9,1.2);g.add(ex);
+  const u={wheels,kind};
+  if(kind==='radlice'){/* zadní radlice na sníh, šikmo */const b=new THREE.Group();b.position.set(0,.05,-1.55);b.rotation.y=.35;
+    b.add(box(2.4,.62,.08,lam(0xf2b705),0,.36,0),box(2.4,.06,.12,gr,0,.04,.03),box(.1,.1,.6,gr,-.3,.6,.3),box(.1,.1,.6,gr,.3,.6,.3));g.add(b);u.blade=b}
+  else{/* vlečka: oj, valník s bočnicemi, dvě kola */const t=new THREE.Group();g.userData.trailer=t;
+    t.add(box(1.9,.12,3.2,lam(0x8a5a2b),0,.85,0));for(const x of[-.95,.95])t.add(box(.06,.4,3.2,red,x,1.1,0));t.add(box(1.9,.4,.06,red,0,1.1,-1.6),box(1.9,.4,.06,red,0,1.1,1.6));
+    t.add(box(.08,.08,1.3,gr,0,.6,2.2));const tw=[wh(.42,.26,-.92,.42,0),wh(.42,.26,.92,.42,0)];t.add(...tw);u.twheels=tw;u.trailerM=t}
+  Object.assign(g.userData,u);return g}
+function cgNear(x,z){let b=-1,bd=1e9;for(let i=0;i<CG.n.length;i++){const d=(CG.n[i][0]-x)**2+(CG.n[i][1]-z)**2;if(d<bd){bd=d;b=i}}return b}
+const tractors=[];let snowP=[];
+function clearTractors(){for(const t of tractors){scene.remove(t.mesh);if(t.trailer)scene.remove(t.trailer)}tractors.length=0;for(const p of snowP)scene.remove(p.m);snowP=[];for(const e of ents)e.ride=null}
+/* cíle na straně: uzly silnic u domů trasy */
+function trakGoal(t){const o=route[Math.floor(Math.random()*route.length)];if(!o)return -1;const d=doorOf(o.b);return cgNear(d.x,d.z)}
+function trakPlan(t){for(let k=0;k<8;k++){const a=cgNear(t.pos.x,t.pos.z),b=trakGoal(t);if(a<0||b<0||a===b)continue;const p=findPath(a,b,CG);if(p&&p.length>3){t.path=p;t.i=1;return true}}return false}
+function makeTractors(){clearTractors();const P=(leader()||player).pos;
+  for(const kind of['radlice','vlecka']){const m=makeTractor(kind);scene.add(m);let tr=null;if(m.userData.trailerM){tr=m.userData.trailerM;m.remove(tr);scene.add(tr)}
+    const t={i:tractors.length,kind,mesh:m,trailer:tr,pos:new THREE.Vector3(),face:0,tface:0,spd:0,wait:0,go:0,path:null,honk:0,tpos:new THREE.Vector3()};
+    for(let k=0;k<30;k++){const o=route[Math.floor(Math.random()*route.length)];if(!o)break;const d=doorOf(o.b),n=cgNear(d.x,d.z);if(n<0)continue;const[x,z]=CG.n[n];if((Math.hypot(x-P.x,z-P.z)>40&&tractors.every(o=>Math.hypot(o.pos.x-x,o.pos.z-z)>40))||k===29){t.pos.set(x,0,z);break}}
+    trakPlan(t);if(t.path&&t.path[1])t.face=Math.atan2(t.path[1][0]-t.pos.x,t.path[1][1]-t.pos.z);t.tface=t.face;trailerFollow(t,0,true);tractors.push(t);placeTractor(t,0)}}
+/* vlečka se táhne za ojí (jednoduché kloubové vlečení) */
+function trailerFollow(t,dt,snap){if(!t.trailer)return;const hx=t.pos.x-Math.sin(t.face)*1.75,hz=t.pos.z-Math.cos(t.face)*1.75;
+  if(snap){t.tface=t.face}else{const cx=t.tpos.x,cz=t.tpos.z,a=Math.atan2(hx-cx,hz-cz);if(Math.hypot(hx-cx,hz-cz)>.3){let d=a-t.tface;d=Math.atan2(Math.sin(d),Math.cos(d));t.tface+=d*Math.min(1,dt*6)}}
+  t.tpos.set(hx-Math.sin(t.tface)*2.35,0,hz-Math.cos(t.tface)*2.35)}
+function riders(t){return ents.filter(e=>e.ride===t)}
+function updTractor(t,dt){if(!t.path||t.i>=t.path.length){if(!trakPlan(t)){t.spd=0;placeTractor(t,dt);return}}
+  const p=t.path,[ax,az]=p[t.i-1],[bx,bz]=p[t.i];let dx=bx-ax,dz=bz-az;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+  const tx=bx-dz*1.4,tz=bz+dx*1.4,ddx=tx-t.pos.x,ddz=tz-t.pos.z,dist=Math.hypot(ddx,ddz);
+  let want=TRAK.spd;if(t.i+1<p.length){const[cx2,cz2]=p[t.i+1];const ex=cx2-bx,ez=cz2-bz,el=Math.hypot(ex,ez)||1;if((dx*ex+dz*ez)/el<.85)want=2.2}
+  const fx=Math.sin(t.face),fz=Math.cos(t.face);let block=false;
+  for(const o of ents.concat(kids)){if(o.gone>0||o.ride)continue;const ox=o.pos.x-t.pos.x,oz=o.pos.z-t.pos.z,ahead=ox*fx+oz*fz,side=Math.abs(ox*fz-oz*fx);
+    if(ahead>0&&ahead<8&&side<2.1){block=true;if(o===player&&t.honk<=0&&t.kind==='vlecka'&&player.role==='cert'){t.honk=6;toast('Traktor zastavil – naskoč na vlečku (B)',1800)}}}
+  for(const o of cars.concat(tractors)){if(o===t)continue;const ox=o.pos.x-t.pos.x,oz=o.pos.z-t.pos.z,ahead=ox*fx+oz*fz,side=Math.abs(ox*fz-oz*fx);if(ahead>0&&ahead<9&&side<1.8)want=ahead<6?0:Math.min(want,o.spd)}
+  t.honk-=dt;if(block){want=0;t.go=2.5}else if(t.go>0){t.go-=dt;want=0}      /* po zastavení chvíli počká (čas naskočit) */
+  t.spd+=Math.max(-8*dt,Math.min(2*dt,want-t.spd));
+  if(dist<1.2){t.i++;placeTractor(t,dt);return}
+  const tf=Math.atan2(ddx,ddz);let da=tf-t.face;da=Math.atan2(Math.sin(da),Math.cos(da));t.face+=da*Math.min(1,dt*2.5);
+  t.pos.x+=Math.sin(t.face)*t.spd*dt;t.pos.z+=Math.cos(t.face)*t.spd*dt;trailerFollow(t,dt);
+  /* nikoho nepřejede (kromě těch, co jedou na vlečce) */
+  const segs=[[t.pos.x,t.pos.z,t.face,2.2,1.2]];if(t.trailer)segs.push([t.tpos.x,t.tpos.z,t.tface,1.8,1.15]);
+  for(const o of ents.concat(kids)){if(o.ride)continue;for(const[sx,sz,sf,hl,hw]of segs){const gx=Math.sin(sf),gz=Math.cos(sf),ox=o.pos.x-sx,oz=o.pos.z-sz,lz=ox*gx+oz*gz,lx=ox*gz-oz*gx;
+    if(Math.abs(lz)<hl&&Math.abs(lx)<hw){const push=(hw+.15-Math.abs(lx))*(lx<0?-1:1);o.pos.x+=gz*push;o.pos.z-=gx*push}}}
+  placeTractor(t,dt)}
+function placeTractor(t,dt){const m=t.mesh,u=m.userData,fx=Math.sin(t.face),fz=Math.cos(t.face);t.pos.y=groundH(t.pos.x,t.pos.z)+.02;m.position.copy(t.pos);
+  const hf=groundH(t.pos.x+fx*1.3,t.pos.z+fz*1.3),hb=groundH(t.pos.x-fx*1.3,t.pos.z-fz*1.3);m.rotation.set(-Math.atan2(hf-hb,2.6),t.face,0,'YXZ');
+  u.wheels.forEach((w,i)=>w.rotation.x+=t.spd*dt/(i<2?.62:.36));
+  if(t.trailer){const tr=t.trailer;tr.position.set(t.tpos.x,groundH(t.tpos.x,t.tpos.z)+.02,t.tpos.z);tr.rotation.set(0,t.tface,0);u.twheels.forEach(w=>w.rotation.x+=t.spd*dt/.42)}
+  /* radlice: sníh odlétá do strany */
+  if(t.kind==='radlice'&&t.spd>1&&dt>0&&snowP.length<60&&Math.random()<dt*25){const s=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,.18),lam(0xf4f8ff));
+    const bx=t.pos.x-fx*1.6+fz*1.2,bz=t.pos.z-fz*1.6-fx*1.2;s.position.set(bx,t.pos.y+.4,bz);scene.add(s);snowP.push({m:s,vx:fz*rnd(1.5,3)-fx*.5,vy:rnd(1.5,3),vz:-fx*rnd(1.5,3)-fz*.5,t:0})}}
+function updSnow(dt){for(let i=snowP.length-1;i>=0;i--){const p=snowP[i];p.t+=dt;p.vy-=9.8*dt;p.m.position.x+=p.vx*dt;p.m.position.y+=p.vy*dt;p.m.position.z+=p.vz*dt;
+  if(p.t>1.2||p.m.position.y<groundH(p.m.position.x,p.m.position.z)-.1){scene.remove(p.m);snowP.splice(i,1)}}}
+/* ostatní hráči: traktory podle hostitele */
+function viewTractor(t,dt){if(t.nx===undefined){placeTractor(t,0);return}const a=Math.min(1,dt*8);
+  if(Math.hypot(t.nx-t.pos.x,t.nz-t.pos.z)>10){t.pos.x=t.nx;t.pos.z=t.nz}else{t.pos.x+=(t.nx-t.pos.x)*a;t.pos.z+=(t.nz-t.pos.z)*a}
+  let d=t.nf-t.face;t.face+=Math.atan2(Math.sin(d),Math.cos(d))*a;d=t.ntf-t.tface;t.tface+=Math.atan2(Math.sin(d),Math.cos(d))*a;t.spd=t.ns;
+  if(t.trailer){const hx=t.pos.x-Math.sin(t.face)*1.75,hz=t.pos.z-Math.cos(t.face)*1.75;t.tpos.set(hx-Math.sin(t.tface)*2.35,0,hz-Math.cos(t.tface)*2.35)}placeTractor(t,dt)}
+function tractorsSnap(){return tractors.map(t=>[q2(t.pos.x),q2(t.pos.z),q2(t.face),q2(t.tface),q2(t.spd)])}
+function tractorsApply(a){a.forEach((q,i)=>{const t=tractors[i];if(!t)return;t.nx=q[0];t.nz=q[1];t.nf=q[2];t.ntf=q[3];t.ns=q[4]})}
+function tractorsHost(){for(const t of tractors){t.path=null;t.go=1}}
+/* jízda na vlečce */
+function slotPos(t,s){const[sx,sz]=TRAK.slots[s],f=t.tface;return[t.tpos.x+Math.cos(f)*sx+Math.sin(f)*sz,t.tpos.z-Math.sin(f)*sx+Math.cos(f)*sz]}
+function freeSlot(t){const used=new Set(riders(t).map(e=>e.slot));for(let s=0;s<TRAK.slots.length;s++)if(!used.has(s))return s;return -1}
+function nearTrailer(e){for(const t of tractors){if(!t.trailer)continue;if(Math.hypot(t.tpos.x-e.pos.x,t.tpos.z-e.pos.z)<3.2)return t}return null}
+function boardTrak(e,t,s){e.ride=t;e.slot=s}
+function leaveTrak(e,side){const t=e.ride;if(!t)return;const f=t.tface,sx=TRAK.slots[e.slot||0][0]<0?-1:1;e.ride=null;
+  e.pos.x=t.tpos.x+Math.cos(f)*sx*1.7;e.pos.z=t.tpos.z-Math.sin(f)*sx*1.7;pushOut(e.pos,.45)}
+/* B: u vlečky naskočit / na vlečce seskočit (jinak kolo) */
+function trakKey(){const P=player;if(!P||state!=='play')return false;
+  if(P.ride){const t=P.ride;leaveTrak(P);NET.send({t:'trak',a:'off',i:t.i});toast('Seskočil jsi z vlečky',900);return true}
+  const t=nearTrailer(P);if(!t)return false;
+  if(P.role!=='cert'){toast('Na vlečku můžou jen čerti',1100);return true}
+  if(t.spd>.6){toast('Traktor jede – zastav ho (postav se před něj)',1300);return true}
+  if(P.carry){toast('Nejdřív hoď popelnici',900);return true}if(P.bike)offBike();
+  const s=freeSlot(t);if(s<0){toast('Vlečka je plná',900);return true}
+  boardTrak(P,t,s);NET.send({t:'trak',a:'on',i:t.i,s});toast('Jedeš na vlečce! B = seskočit',1600);return true}
+function onTrak(m,e){const t=tractors[m.i];if(!t||!e)return;if(m.a==='on')boardTrak(e,t,m.s|0);else if(m.a==='off'&&e.ride){e.ride=null}}
+/* jezdci stojí na vlečce */
+function updRiders(){const P=player;
+  if(P&&P.ride){const t=P.ride;if(!tractors.includes(t)){P.ride=null}else{const[x,z]=slotPos(t,P.slot||0);P.pos.x=x;P.pos.z=z}}
+  for(const e of ents){if(!e.ride)continue;if(!tractors.includes(e.ride)){e.ride=null;continue}
+    if(!e.isPlayer&&!e.human){e.ride=null;continue}
+    e.mesh.position.y=groundH(e.ride.tpos.x,e.ride.tpos.z)+.93;if(e.isPlayer){const[x,z]=slotPos(e.ride,e.slot||0);e.mesh.position.x=x;e.mesh.position.z=z}}
+  const h=$('trakHint');if(h&&P){const t=!P.ride&&P.role==='cert'?nearTrailer(P):null;const show=!!P.ride||(!!t&&t.spd<.6);h.classList.toggle('hide',!show);h.textContent=P.ride?(isTouch?'Tlačítko Vlečka: seskočit':'B: seskočit z vlečky'):(isTouch?'Tlačítko Vlečka: naskočit':'B: naskočit na vlečku')
+    const tb=$('tKolo');if(tb&&isTouch&&show){tb.classList.remove('hide');tb.textContent='Vlečka'}}}
+
 /* ===================== AKTUALIZACE ===================== */
 function applyPts(b,f,p){if(f==='house'){b.houses++;b.score+=p}else if(f==='scare'){b.scareP+=p;b.score+=p}else if(f==='catch'){b.caught++;b.score+=p}else if(f==='pen'){b.caught++;b.penalty+=p;b.score-=p}else if(f==='pes'){b.psi=(b.psi||0)+1;b.score+=p}}
 function award(e,f,p,msg,ms){if(!e||!e.human)return;
@@ -547,6 +645,7 @@ function update(dt){
   if(keys.has('arrowleft'))cam.yaw+=1.8*dt;if(keys.has('arrowright'))cam.yaw-=1.8*dt;
   if(joy.id!==null){ix+=joy.dx;iz+=joy.dy}
   if(autoRun&&joy.id===null){iz=-1}
+  if(P.ride){ix=0;iz=0}
   let il=Math.hypot(ix,iz);if(il>1){ix/=il;iz/=il;il=1}
   const wantRun=(keys.has('shift')||runHeld||autoRun||(joy.id!==null&&joy.run))&&il>0.2;
   if(P.stamina<=0)P.tired=true;if(P.tired&&P.stamina>30)P.tired=false;
@@ -570,7 +669,7 @@ function update(dt){
   ents.forEach((e,k)=>updMember(e,k,dt))}
   ents.forEach(e=>placeEnt(e,dt));
   if(isHost())for(const g of dogs)updDog(g,dt);else for(const g of dogs)viewDog(g,dt);
-  updBins(dt);updBikes(dt);
+  updBins(dt);updBikes(dt);updRiders();
   updRes(dt);
   for(let i=puffs.length-1;i>=0;i--){const p=puffs[i];p.t-=dt;p.v.y-=9*dt;p.m.position.addScaledVector(p.v,dt);p.m.scale.setScalar(Math.max(.1,p.t/.7));if(p.t<=0||p.m.position.y<p.g){scene.remove(p.m);puffs.splice(i,1)}}
   /* ukazatele */
@@ -582,7 +681,7 @@ function update(dt){
   else if(P.role==='mikulas'){$('prompt').classList.remove('hide');$('promptT').textContent=`Veď družinu k domu ${ri+1}/${route.length} (žluté světlo)`;$('promptBar').style.width='0'}
   else $('prompt').classList.add('hide');
   /* napalovači a auta */
-  if(isHost()){for(const k of kids)updKid(k,dt);updCars(dt)}else{for(const k of kids)viewKid(k,dt);viewCars(dt)}
+  if(isHost()){for(const k of kids)updKid(k,dt);updCars(dt);for(const t of tractors)updTractor(t,dt)}else{for(const k of kids)viewKid(k,dt);viewCars(dt);for(const t of tractors)viewTractor(t,dt)}updSnow(dt);
   /* koule */
   for(let i=balls.length-1;i>=0;i--){const b=balls[i];b.v.y-=9.8*dt;b.m.position.addScaledVector(b.v,dt);
     const dx=b.m.position.x-P.pos.x,dz=b.m.position.z-P.pos.z;
@@ -809,7 +908,7 @@ function mountBike(e,k){if(k.by&&k.by!==e)k.by.bike=null;k.by=e;e.bike=k;e.pos.x
 function dismountBike(e,x,z,f){const k=e.bike;if(!k)return;k.by=null;e.bike=null;
   if(x===undefined){x=e.pos.x+Math.cos(e.face)*.7;z=e.pos.z-Math.sin(e.face)*.7;f=e.face}k.pos.set(x,0,z);k.face=f;placeBike(k,0)}
 /* klávesa B / tlačítko Kolo: nasednout nebo sesednout */
-function bikeKey(){const P=player;if(state!=='play'||!P)return;
+function bikeKey(){const P=player;if(state!=='play'||!P||P.ride)return;
   if(P.bike){offBike();return}
   if(P.carry){toast('Nejdřív hoď popelnici',900);return}
   const k=nearBike(P);if(!k){toast('Žádné kolo poblíž',900);return}mountBike(P,k);NET.send({t:'kolo',a:'on',i:k.i});
@@ -936,6 +1035,7 @@ function drawMap(){const W=mapC.width,R=W/2,sc=W/(mapBig?420:160),f=mapBig?1.7:1
   /* spoluhráči zeleně (Mikuláš větší s bílým okrajem), protivníci červeně */
   for(const e of ents){if(e.isPlayer)continue;const x=e.pos.x-bx[0],z=e.pos.z-bx[1],mk=e.role==='mikulas';mx.fillStyle='#22c55e';mx.beginPath();mx.arc(x,z,(mk?3:e.human?2.6:1.9)*f,0,Math.PI*2);mx.fill();
     if(mk||e.human){mx.strokeStyle='#fff';mx.lineWidth=.8*f;mx.stroke()}}
+  mx.fillStyle='#b91c1c';for(const t of tractors){mx.fillRect(t.pos.x-bx[0]-2.2*f,t.pos.z-bx[1]-2.2*f,4.4*f,4.4*f)}
   mx.fillStyle='#f59e0b';for(const g of dogs){if(g.st!=='atk'&&g.st!=='back')continue;mx.beginPath();mx.arc(g.pos.x-bx[0],g.pos.z-bx[1],1.8*f,0,Math.PI*2);mx.fill()}
   mx.fillStyle='#ef4444';for(const k of kids){if(k.gone>0)continue;mx.beginPath();mx.arc(k.pos.x-bx[0],k.pos.z-bx[1],2.2*f,0,Math.PI*2);mx.fill()}
   mx.restore();const a=mapBig?2:1;
@@ -1027,6 +1127,6 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-last)
   else if(state==='menu'||state==='end'){const t=now/9000;const s=M.start||[0,0];camera.position.set(s[0]+Math.sin(t)*70,45+gy(s[0],s[1]+130),s[1]+130+Math.cos(t)*70);camera.lookAt(s[0],gy(s[0],s[1]+130),s[1]+130)}
   renderer.render(scene,camera)}
 $('loading').remove();requestAnimationFrame(loop);
-window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},dogs,bins,binKey,hitDog,bikes,bikeKey,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
+window.__hra={NET,get board(){return NET.board},scene,gy,groundH,carve,camera,cam,get player(){return player},get kids(){return kids},get ents(){return ents},get grp(){return grp},get route(){return route},get cars(){return cars},tractors,trakKey,dogs,bins,binKey,hitDog,bikes,bikeKey,get ri(){return ri},RES,B,start,animAttack,state:()=>state,
   setChar:v=>{selChar=v},setTime:v=>{timeLeft=v},step:n=>{for(let i=0;i<n&&state==='play';i++)update(.05)},get timeLeft(){return timeLeft}};
 

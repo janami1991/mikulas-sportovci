@@ -115,6 +115,7 @@ button.big2{background:transparent}
 .zeb .me{text-decoration:underline}
 #zebMsg{font-size:13px;color:#cfcfcf;min-height:1em}
 #tKolo{width:66px;height:66px;right:calc(max(18px,env(safe-area-inset-right)) + 186px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 100px);font-size:13px}
+#trakHint{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 176px);transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:8px;font-size:14px;pointer-events:none}
 #koloHint{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 140px);transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:8px;font-size:14px;pointer-events:none}
 .tag{position:fixed;transform:translate(-50%,-100%);color:#fff;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
 #board{position:fixed;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 42px);background:rgba(0,0,0,.42);border-radius:8px;padding:5px 9px;font-size:12px;line-height:1.5;pointer-events:auto;cursor:pointer;min-width:130px;max-width:40vw;user-select:none}
@@ -151,6 +152,7 @@ button.big2{background:transparent}
  <div id="splat"></div>
  <div id="binHint" class="hide"></div>
  <div id="koloHint" class="hide"></div>
+ <div id="trakHint" class="hide"></div>
  <div id="toast"></div>
  <div id="bubbles"></div>
  <div id="touch" class="hide">
@@ -185,8 +187,8 @@ button.big2{background:transparent}
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
   <button class="big" id="bStart" type="button">Hrát</button>
-  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>B</b> kolo · <b>myš (tažení)</b> otáčení kamery</div>
-  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>. Hraje se na šířku.</div>
+  <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>F</b> popelnice (čert) · <b>B</b> kolo / vlečka traktoru (čert) · <b>myš (tažení)</b> otáčení kamery</div>
+  <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>, u popelnice <b>Popelnice</b> (čert), u kola <b>Kolo</b>, u vlečky traktoru <b>Vlečka</b> (čert). Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <button class="big2" id="spBack" type="button">← Zpět do menu</button>
  </div>
