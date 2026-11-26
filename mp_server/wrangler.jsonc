@@ -1,0 +1,10 @@
+{
+  // Herní server pro multiplayer (Cloudflare Workers Free + Durable Objects se SQLite)
+  "name": "mikulas-mp",
+  "main": "src/index.js",
+  "compatibility_date": "2025-09-01",
+  "durable_objects": {
+    "bindings": [{ "name": "MISTNOST", "class_name": "Mistnost" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Mistnost"] }]
+}

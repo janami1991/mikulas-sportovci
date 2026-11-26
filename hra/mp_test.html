@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="cs"><head><meta charset="utf-8"><title>Test multiplayeru</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;background:#111;color:#eee;font:14px system-ui,sans-serif}
+#bar{padding:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,button{background:#222;color:#eee;border:1px solid #888;padding:5px 8px;border-radius:4px}
+button{cursor:pointer}canvas{display:block;background:#1b1b1b;margin:0 8px;border:1px solid #444;touch-action:none}
+#st{opacity:.85}
+</style></head><body>
+<div id="bar">Server <input id="srv" size="38" placeholder="wss://mikulas-mp.xxx.workers.dev">
+Místnost <input id="room" size="8" value="test">
+Zpráv/s <input id="hz" type="number" min="1" max="30" value="10" style="width:50px">
+<button id="go">Připojit</button><span id="st">nepřipojeno</span></div>
+<canvas id="c" width="800" height="500"></canvas>
+<div style="padding:8px;opacity:.7">Pohyb: šipky / WASD nebo táhnout myší. Otevři ve dvou oknech.</div>
+<script>
+const $=id=>document.getElementById(id), cv=$('c'), g=cv.getContext('2d');
+const q=new URLSearchParams(location.search);
+$('srv').value=q.get('server')||localStorage.getItem('mp-srv')||'';
+if(q.get('room'))$('room').value=q.get('room');
+let ws=null,me=null,timer=null,sent=0,recv=0,t0=0;
+const P={x:100+Math.random()*600,y:100+Math.random()*300}, others={}, keys={};
+const col=id=>'hsl('+(parseInt(id,16)%360)+',70%,60%)';
+addEventListener('keydown',e=>keys[e.key.toLowerCase()]=1);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+cv.addEventListener('pointermove',e=>{if(e.buttons){const r=cv.getBoundingClientRect();P.x=e.clientX-r.left;P.y=e.clientY-r.top;}});
+$('go').onclick=()=>{
+  if(ws){ws.close();return;}
+  const s=$('srv').value.trim().replace(/\/$/,'');localStorage.setItem('mp-srv',s);
+  ws=new WebSocket(s+'/mistnost/'+encodeURIComponent($('room').value.trim()||'test'));
+  $('st').textContent='připojuji…';
+  ws.onopen=()=>{$('go').textContent='Odpojit';t0=performance.now();sent=recv=0;
+    timer=setInterval(()=>{if(ws.readyState===1){ws.send(JSON.stringify({x:Math.round(P.x),y:Math.round(P.y)}));sent++;}},1000/Math.max(1,+$('hz').value||10));};
+  ws.onmessage=e=>{const m=JSON.parse(e.data);
+    if(m.t==='ahoj')me=m.id;
+    else if(m.t==='m'){recv++;const d=JSON.parse(m.d),o=others[m.id]||(others[m.id]={x:d.x,y:d.y});o.tx=d.x;o.ty=d.y;o.ts=performance.now();}
+    else if(m.t==='pryc')delete others[m.id];};
+  ws.onclose=e=>{clearInterval(timer);ws=null;$('go').textContent='Připojit';$('st').textContent='odpojeno ('+e.code+')';};
+  ws.onerror=()=>{$('st').textContent='chyba spojení';};
+};
+function loop(){
+  const v=4;if(keys.arrowleft||keys.a)P.x-=v;if(keys.arrowright||keys.d)P.x+=v;if(keys.arrowup||keys.w)P.y-=v;if(keys.arrowdown||keys.s)P.y+=v;
+  P.x=Math.max(10,Math.min(790,P.x));P.y=Math.max(10,Math.min(490,P.y));
+  g.clearRect(0,0,800,500);
+  for(const id in others){const o=others[id];o.x+=(o.tx-o.x)*.25;o.y+=(o.ty-o.y)*.25;
+    g.fillStyle=col(id);g.beginPath();g.arc(o.x,o.y,10,0,7);g.fill();g.fillStyle='#ccc';g.fillText(id,o.x+13,o.y+4);}
+  g.fillStyle='#fff';g.beginPath();g.arc(P.x,P.y,12,0,7);g.fill();g.fillStyle='#fff';g.fillText('já'+(me?' '+me:''),P.x+15,P.y+4);
+  if(ws&&ws.readyState===1){const s=(performance.now()-t0)/1000;
+    $('st').textContent=`připojeno · hráčů ${1+Object.keys(others).length} · odesláno ${sent} · přijato ${recv} · ${s.toFixed(0)} s · Odhad požadavků (20:1): ${Math.ceil(sent/20)+1}`;}
+  requestAnimationFrame(loop);}
+loop();
+</script></body></html>
