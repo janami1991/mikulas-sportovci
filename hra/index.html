@@ -76,6 +76,25 @@ a{color:#fff}
 #loading{position:fixed;inset:0;display:grid;place-items:center;background:#0d0d0d;font-size:16px}
 @media(max-height:500px){#map{width:110px;height:110px}#topBtns{top:max(10px,env(safe-area-inset-top));right:calc(max(10px,env(safe-area-inset-right)) + 120px);flex-direction:row}}
 @media(max-width:600px){#oSide{grid-template-columns:repeat(2,minmax(0,1fr))}#map{width:110px;height:110px}#topBtns{top:calc(max(10px,env(safe-area-inset-top)) + 120px)}}
+#map{cursor:pointer}
+#map.big{right:50%;top:50%;transform:translate(50%,-50%);width:min(88vmin,640px);height:min(88vmin,640px);border-radius:14px;z-index:21}
+#mapBack{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20}
+#mapCtl{position:fixed;left:50%;top:calc(50% - min(44vmin,320px) + 8px);transform:translateX(-50%);z-index:22;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:min(86vmin,620px)}
+#mapCtl .sbtn{background:rgba(0,0,0,.7)}
+#mapCtl #bNav[aria-pressed=true]{border-color:#38bdf8;color:#38bdf8}
+/* hra více hráčů */
+button.big2{background:transparent}
+.inp{min-height:50px;border-radius:10px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.06);color:#fff;padding:0 14px;font:inherit;font-size:17px;width:100%;-webkit-user-select:text;user-select:text}
+.inp:focus{outline:2px solid #fff;outline-offset:1px}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.row .big2{padding:0 22px}
+#mpRoomCode{font-size:22px;letter-spacing:.12em}
+.tag{position:fixed;transform:translate(-50%,-100%);color:#fff;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px #000,0 0 2px #000}
+#board{position:fixed;left:max(10px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 42px);background:rgba(0,0,0,.5);border-radius:8px;padding:6px 10px;font-size:13px;line-height:1.55;pointer-events:none;min-width:150px;max-width:45vw}
+#board div{display:flex;justify-content:space-between;gap:12px}
+#board .me{color:#ffd166;font-weight:700}
+#board .left{opacity:.5}
+.res .me{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -88,7 +107,10 @@ a{color:#fff}
   <div class="pill">Chyceno <b id="hCaught">0</b></div>
   <div class="pill" id="hTime">20:00</div>
  </div>
- <canvas id="map" width="300" height="300" aria-label="Minimapa"></canvas>
+ <div id="board" class="hide"></div>
+ <div id="mapBack" class="hide"></div>
+ <canvas id="map" width="300" height="300" aria-label="Minimapa – klikni pro zvětšení" title="Zvětšit mapu (M)"></canvas>
+ <div id="mapCtl" class="hide"><button class="sbtn" id="bNav" type="button" aria-pressed="false">Navádění: vyp</button><button class="sbtn" id="bMapClose" type="button">✕ Zmenšit</button></div>
  <div id="topBtns"><button class="sbtn" id="bEnd" type="button">Ukončit obchůzku</button><button class="sbtn" id="bPause" type="button">Pauza</button><button class="sbtn" id="bSound" type="button">Zvuk: zap</button></div>
  <div id="staminaL">Výdrž</div>
  <div id="staminaW"><div id="stamina"></div></div>
@@ -109,14 +131,38 @@ a{color:#fff}
  <div class="card">
   <h1>Mikulášská obchůzka<br>Lidečko</h1>
   <p>Jdi s družinou od domu k domu. Body za dům dostaneš, jen když jsi u něj s ostatními – u domu straš a mezi domy chytej napalovače. Vzhled postav kromě čerta je zatím provizorní.</p>
+  <button class="big2" id="bMulti" type="button">Hrát s ostatními (více hráčů)</button>
+  <div class="lbl" style="margin-bottom:-8px">nebo hraj sám:</div>
   <div><div class="lbl">Postava</div><div class="opts" id="oChar"></div></div>
   <div id="varW"><div class="lbl">Vzhled čerta</div><div class="opts five" id="oVar"></div></div>
   <div><div class="lbl">Strana</div><div class="opts" id="oSide"></div></div>
-  <button class="big" id="bStart" type="button">Vyjít na stranu</button>
+  <button class="big" id="bStart" type="button">Hrát sám</button>
   <div class="keys" id="keysPC"><b>WASD / šipky</b> chůze · <b>Shift</b> běh · <b>Mezerník</b> udeřit · <b>Q</b> strašit u domu · <b>myš (tažení)</b> otáčení kamery</div>
   <div class="keys hide" id="keysTouch"><b>Levý palec</b> chůze · <b>tažení vpravo</b> otáčení kamery · tlačítka <b>Běh</b>, <b>Udeřit</b>, <b>Strašit</b>. Hraje se na šířku.</div>
   <div class="keys" id="best"></div>
   <div class="links one" id="menuLinks"><a class="big2 hide" id="lEditor" href="editor.html">Editor mapy</a><a class="big2" href="../index.html">← Zpět na web</a></div>
+ </div>
+</div>
+
+<div class="screen hide" id="mp">
+ <div class="card">
+  <h1>Hra více hráčů</h1>
+  <p>Až 12 hráčů v jedné družině, body sbírá každý sám za sebe. Postavy, které nikdo nevybere, hraje počítač. Kdo 60 s nic nedělá, toho hra odpojí.</p>
+  <div id="mpJoin" class="card">
+   <div><div class="lbl">Přezdívka</div><input class="inp" id="mpName" maxlength="16" autocomplete="nickname"></div>
+   <button class="big" id="mpCreate" type="button">Založit místnost</button>
+   <div><div class="lbl">nebo se připoj kódem místnosti</div><div class="row"><input class="inp" id="mpCode" maxlength="8" autocomplete="off" placeholder="např. K7PM"><button class="big2" id="mpJoinB" type="button">Připojit</button></div></div>
+  </div>
+  <div id="mpRoom" class="card hide">
+   <div class="row"><div><div class="lbl">Místnost</div><b id="mpRoomCode"></b></div><button class="sbtn" id="mpCopy" type="button">Kopírovat odkaz</button></div>
+   <div><div class="lbl">Hráči</div><div class="res" id="mpList"></div></div>
+   <div><div class="lbl">Tvoje postava</div><div class="opts" id="mpChar"></div></div>
+   <div id="mpVarW" class="hide"><div class="lbl">Vzhled čerta</div><div class="opts five" id="mpVar"></div></div>
+   <button class="big" id="mpStart" type="button">Vyjít na stranu</button>
+   <div class="keys" id="mpInfo"></div>
+  </div>
+  <div class="keys" id="mpMsg" role="status"></div>
+  <div class="links one"><button class="big2" id="mpBack" type="button">← Zpět</button></div>
  </div>
 </div>
 
@@ -133,7 +179,7 @@ a{color:#fff}
   <div class="res" id="endRes"></div>
   <div class="keys" id="endBest"></div>
   <button class="big" id="bAgain" type="button">Hrát znovu</button>
-  <div class="links one"><a class="big2" href="../index.html">← Zpět na web</a></div>
+  <div class="links"><button class="big2" id="bMenu" type="button">Hlavní menu</button><a class="big2" href="../index.html">← Zpět na web</a></div>
  </div>
 </div>
 
@@ -151,7 +197,7 @@ try{db=await import('../db.js');
   if(db.configured){const m=await Promise.race([db.loadMapa(),new Promise(r=>setTimeout(()=>r(null),8000))]);
     if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
-await load('svet.js');await load('hra.js');load('zvuky.js').catch(()=>{});
+await load('svet.js');await load('hra.js');await load('mp.js');load('zvuky.js').catch(()=>{});
 /* odkaz na editor mapy vidí jen správci */
 if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3){document.getElementById('lEditor').classList.remove('hide');document.getElementById('menuLinks').classList.remove('one')}}).catch(()=>{});
 </script>
