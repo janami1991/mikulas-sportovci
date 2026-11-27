@@ -147,6 +147,10 @@ export async function saveMapa(json, t, strana) {
   await b.commit()
 }
 
+/* ===== nastavení hry (parametry, které mění správce): čte každý, ukládá jen správce ===== */
+export async function loadNast() { const d = await getDoc(doc(db, 'nastaveni', 'hra')); return d.exists() ? JSON.parse(d.data().d || '{}') : null }
+export async function saveNast(o) { await setDoc(doc(db, 'nastaveni', 'hra'), { d: JSON.stringify(o), t: Date.now(), by: ME ? ME.jmeno : '' }) }
+
 /* ===== žebříček hry: čte každý, zapíše kdokoliv (pravidla hlídají tvar záznamu), maže správce ===== */
 export async function addScore(z) { const r = await addDoc(collection(db, 'zebricek'), { ...z, ts: serverTimestamp() }); return r.id }
 export async function topScores(n) {

@@ -9,6 +9,7 @@ const CFG = {
   chuze: 3.4, beh: 6.6,  // rychlost čerta (m/s)
   kidBeh: 5.5, kidUnaveny: 3.0,
   bodyDum: 10, bodyChycen: 25, bodyPes: 13, bodyKombo: 15,   // pes = polovina napalovače (12,5 zaokrouhleno)
+  bodyStrach: 3, bodyStrachMik: 1,   // strašení u domu (ostatní 4× na dům, Mikuláš 2×)
   bodyBonbon: 2, bodyNadilka: 2, bodyDumMik: 5, rebelS: 30, rebelPen: 5,   // Mikuláš-hráč nedojde k domu do 30 s → družina jde sama, Mikuláš −5 a bez bodů za dům
     // Mikuláš: dům +5, pochválit děti +1 (2× na dům)
     // Mikuláš: bonbon trefí napalovače / nadílka po odpovědi dětí
@@ -296,7 +297,7 @@ const ROLE={
   mikulas:{n:'Mikuláš',chuze:3.52,beh:5.6,drain:18,dosah:2.6,sila:1/8,respekt:1,   akce:'Pochválit děti',pokuta:10},
 };
 const DRUZINA=['mikulas','cert','cert','cert','cert','cert','konik','smrtka','prda'];
-const VISIT_S=10, ROUTE_N=50, GROUP_SPD=1.35;
+let VISIT_S=10, ROUTE_N=50;const GROUP_SPD=1.35;   /* čas u domu a délka trasy jdou změnit v Nastavení (nastaveni.js) */
 
 /* ===================== STAV HRY ===================== */
 const cam={yaw:Math.PI,pitch:0.42,dist:7};
@@ -451,7 +452,7 @@ function scare(){const e=player;if(e.nap){napAction();return}if(e.role==='mikula
 /* strašení vyhodnotí hostitel: body jen u domu s družinou, nejvýš 4× na dům a hráče */
 function doScare(e){
   if(grp.phase==='visit'&&grp.house&&Math.hypot(e.pos.x-grp.house.cx,e.pos.z-grp.house.cz)<16){if(e.scH!==ri){e.scH=ri;e.scC=0}
-    const mk=e.role==='mikulas',sp=mk?1:3;if(e.scC<(mk?2:4)){e.scC++;award(e,'scare',sp,`${ROLE[e.role].akce}! +${sp}`,900)}else award(e,'msg',0,'U tohoto domu už stačí 🙂',900)}
+    const mk=e.role==='mikulas',sp=mk?CFG.bodyStrachMik:CFG.bodyStrach;if(e.scC<(mk?2:4)){e.scC++;award(e,'scare',sp,`${ROLE[e.role].akce}! +${sp}`,900)}else award(e,'msg',0,'U tohoto domu už stačí 🙂',900)}
   else award(e,'msg',0,'Body za strašení jsou jen u domu s družinou',1500)}
 
 /* ===================== POHYB A AI ===================== */
@@ -1381,23 +1382,25 @@ function updNav(){const P=player;if(!navOn||!P){navArrow.visible=false;return}
 let selChar=store('obchuzka-postava')||'cert',selSide=STRANA,selVar=+store('obchuzka-cert')||1;
 if(!POSTAVY.some(p=>p.id===selChar&&!p.off))selChar='cert';
 /* (i) u postav: účel a schopnosti (číselné údaje odpovídají ROLE, CFG, NAP) */
-const SPOL=`<li>Přemoženého (ležícího) napalovače zvedne <b>F</b> a nosí nad hlavou nejvýš 30 s; <b>F / Mezerník</b> = hodit. Zásah jiného napalovače = <b>kombo +15</b>.</li><li>Na kolo u domu nasedne <b>B</b> (Shift / Běh = rychle, bere sílu; <b>B</b> = sesednout).</li>`;
-const BODY_D=`<li>Dům s družinou <b>+10</b>, strašení <b>+3</b> (4× na dům, jen u domu s družinou), přemožený napalovač <b>+25</b>, zahnaný pes <b>+13</b>.</li>`;
-const POSTAVA_INFO={
+function postavaInfo(){const C=CFG;
+const SPOL=`<li>Přemoženého (ležícího) napalovače zvedne <b>F</b> a nosí nad hlavou nejvýš 30 s; <b>F / Mezerník</b> = hodit. Zásah jiného napalovače = <b>kombo +${C.bodyKombo}</b>.</li><li>Na kolo u domu nasedne <b>B</b> (Shift / Běh = rychle, bere sílu; <b>B</b> = sesednout).</li>`;
+const BODY_D=`<li>Dům s družinou <b>+${C.bodyDum}</b>, strašení <b>+${C.bodyStrach}</b> (4× na dům, jen u domu s družinou), přemožený napalovač <b>+${C.bodyChycen}</b>, zahnaný pes <b>+${C.bodyPes}</b>.</li>`;
+return {
   cert:{u:'Chrání družinu před napalovači a u domů straší.',s:`<li><b>Nejsilnější rána</b>: napalovače složí 5 ranami (ostatní 8), psa 3 (ostatní 4).</li><li><b>Popelnice</b>: <b>F</b> zvedne, <b>F / Mezerník</b> hodí; zásah = 2 rány čerta.</li><li>Na stojící vlečku traktoru naskočí <b>B</b> (traktor zastavíš, když se mu postavíš do cesty); <b>B</b> = seskočit.</li><li>Při běhu se unaví nejrychleji z družiny (kromě Mikuláše).</li>${SPOL}`,b:BODY_D},
   prda:{u:'Rychlý pomocník družiny – honí napalovače a u domů straší.',s:`<li>Rychlý a s dlouhou výdrží při běhu.</li><li>Napalovači se ho bojí už z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
   konik:{u:'Nejrychlejší člen družiny – dožene utíkající napalovače.',s:`<li><b>Nejrychlejší běh</b> a dlouhá výdrž.</li><li>Útok = seknutí šavlí do kříže; u domu (Q) točí šavlí.</li><li>Napalovači se ho bojí z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
   smrtka:{u:'Drží napalovače od družiny dlouhou kosou.',s:`<li><b>Nejdelší dosah</b> úderu kosou (3,4 m).</li><li>U domu (Q) klepe na kosu.</li><li>Napalovači se jí bojí z větší dálky (o 25 % víc než čerta).</li><li>Rána je slabší: napalovač 8 ran, pes 4.</li>${SPOL}`,b:BODY_D},
-  mikulas:{u:'Vede družinu od domu k domu (dům se žlutým světlem) a u dveří mluví s dětmi.',s:`<li>Od vyrážení k dalšímu domu má 30 s, aby došel ke dveřím domu, jinak jde družina sama: <b>−5</b> a body za dům nedostane.</li><li>U domu se ptá dětí (<b>1–3</b>), pak dá nadílku (<b>Q / N</b>) – jednou za dům.</li><li><b>Bonbony</b>: Mezerník držet = mířit, pustit = hodit (stejný napalovač nejvýš 1× za 8 s).</li><li>Nepere se; napalovači se ho nebojí.</li><li>Nejpomalejší běh a nejkratší výdrž.</li>${SPOL}`,b:`<li>Dům <b>+5</b>, pochválit děti <b>+1</b> (2× na dům), nadílka <b>+2</b>, bonbon do napalovače <b>+2</b>, kombo <b>+15</b>.</li>`},
-  napalovac:{u:'Zlobí družinu – hází koule, krade nadílku a nesmí se nechat chytit.',s:`<li><b>Koule</b>: Mezerník držet = mířit (5–18 m), pustit = hodit. Na mobilu tlačítko Koule držet a táhnout prstem (do stran = směr, nahoru/dolů = vzdálenost).</li><li><b>Q</b> u Mikuláše při návštěvě domu = ukrást nadílku (1× za 60 s); pak ho honí 3 masky.</li><li><b>Q</b> u čerta = zazvonit mu zvonci (stejný čert 1× za 20 s).</li><li>Když ho družina přemůže, 5 s leží; člen družiny ho může zvednout a jednou hodit. Pak se objeví jinde.</li><li>Za domy body nedostává; psi si ho nevšímají.</li>`,b:`<li>Zásah masky koulí <b>+3</b>, ukradená nadílka <b>+10</b>, zvonce <b>+5</b>, chycení <b>−20</b>.</li>`},
-};
-function showInfo(id){const I=POSTAVA_INFO[id],R=ROLE[id];if(!I)return;let box=$('infBox');
+  mikulas:{u:'Vede družinu od domu k domu (dům se žlutým světlem) a u dveří mluví s dětmi.',s:`<li>Od vyrážení k dalšímu domu má ${C.rebelS} s, aby došel ke dveřím domu, jinak jde družina sama: <b>−${C.rebelPen}</b> a body za dům nedostane.</li><li>U domu se ptá dětí (<b>1–3</b>), pak dá nadílku (<b>Q / N</b>) – jednou za dům.</li><li><b>Bonbony</b>: Mezerník držet = mířit, pustit = hodit (stejný napalovač nejvýš 1× za 8 s).</li><li>Nepere se; napalovači se ho nebojí.</li><li>Nejpomalejší běh a nejkratší výdrž.</li>${SPOL}`,b:`<li>Dům <b>+${C.bodyDumMik}</b>, pochválit děti <b>+${C.bodyStrachMik}</b> (2× na dům), nadílka <b>+${C.bodyNadilka}</b>, bonbon do napalovače <b>+${C.bodyBonbon}</b>, kombo <b>+${C.bodyKombo}</b>.</li>`},
+  napalovac:{u:'Zlobí družinu – hází koule, krade nadílku a nesmí se nechat chytit.',s:`<li><b>Koule</b>: Mezerník držet = mířit (5–18 m), pustit = hodit. Na mobilu tlačítko Koule držet a táhnout prstem (do stran = směr, nahoru/dolů = vzdálenost).</li><li><b>Q</b> u Mikuláše při návštěvě domu = ukrást nadílku (1× za 60 s); pak ho honí 3 masky.</li><li><b>Q</b> u čerta = zazvonit mu zvonci (stejný čert 1× za 20 s).</li><li>Když ho družina přemůže, 5 s leží; člen družiny ho může zvednout a jednou hodit. Pak se objeví jinde.</li><li>Za domy body nedostává; psi si ho nevšímají.</li>`,b:`<li>Zásah masky koulí <b>+${NAP.koule}</b>, ukradená nadílka <b>+${NAP.kradez}</b>, zvonce <b>+${NAP.zvonce}</b>, chycení <b>−${NAP.chycen}</b>.</li>`},
+}}
+const POSTAVA_INFO=postavaInfo();
+function showInfo(id){const I=postavaInfo()[id],R=ROLE[id];if(!I)return;let box=$('infBox');
   if(!box){box=document.createElement('div');box.id='infBox';box.innerHTML='<div class="infIn" role="dialog" aria-modal="true"><button type="button" class="infX" aria-label="Zavřít">✕</button><h3></h3><div class="infT"></div></div>';document.body.appendChild(box);
     box.onclick=e=>{if(e.target===box||e.target.closest('.infX'))box.classList.add('hide')};
     addEventListener('keydown',e=>{if(e.key==='Escape'&&!box.classList.contains('hide')){e.stopPropagation();box.classList.add('hide')}},true)}
   const f=v=>String(v).replace('.',',');
   box.querySelector('h3').textContent=R.n;
-  box.querySelector('.infT').innerHTML=`<p>${I.u}</p><h4>Schopnosti</h4><ul><li>Chůze ${f(R.chuze)} m/s, běh ${f(R.beh)} m/s.</li>${I.s}</ul><h4>Body</h4><ul>${I.b}${id==='napalovac'?'<li>Na hlavní silnici tě srazí auto, nákladní auto i autobus, na kolejích vlak: odletíš asi 20 m a <b>−10</b>.</li>':'<li>Auta na hlavní silnici kvůli družině zastaví, ale vlak nezastaví: srazí tě, odletíš asi 20 m a <b>−10</b>.</li>'}</ul>`;
+  box.querySelector('.infT').innerHTML=`<p>${I.u}</p><h4>Schopnosti</h4><ul><li>Chůze ${f(R.chuze)} m/s, běh ${f(R.beh)} m/s.</li>${I.s}</ul><h4>Body</h4><ul>${I.b}${id==='napalovac'?'<li>Na hlavní silnici tě srazí auto, nákladní auto i autobus, na kolejích vlak: odletíš asi 20 m a <b>−'+(typeof DPC!=='undefined'?DPC.bodySraz:10)+'</b>.</li>':'<li>Auta na hlavní silnici kvůli družině zastaví, ale vlak nezastaví: srazí tě, odletíš asi 20 m a <b>−'+(typeof DPC!=='undefined'?DPC.bodySraz:10)+'</b>.</li>'}</ul>`;
   box.classList.remove('hide');box.querySelector('.infX').focus()}
 function opts(el,list,sel,cb,img,offCb){el.innerHTML=list.map(o=>`<button type="button" class="opt${img?' pic':''}" data-id="${o.id}" aria-pressed="${String(o.id)===String(sel)}" ${o.off?(offCb?'aria-disabled="true"':'disabled'):''}>${img?`<img alt="" data-th="${img(o)}">`:''}${o.n}${o.d?`<small>${o.d}</small>`:''}${img&&POSTAVA_INFO[o.id]?`<span class="inf" data-inf="${o.id}" role="button" tabindex="0" aria-label="Co umí ${o.n}" title="Co umí">i</span>`:''}</button>`).join('');
   el.onkeydown=e=>{const i=e.target.closest&&e.target.closest('.inf');if(i&&(e.key==='Enter'||e.key===' ')){e.preventDefault();e.stopPropagation();showInfo(i.dataset.inf)}};

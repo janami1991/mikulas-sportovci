@@ -73,8 +73,8 @@ function onMsg(m){
   case 'plno':mpFull=true;break;
   case 'chyba':mpErr(m.m,1);myRole=(lobby&&(lobby.hraci.find(p=>p.id===NET.me)||{}).r)||'';renderMp();break;
   case 'lobby':onLobby(m);break;
-  case 'go':if(myRole&&m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board,m.st);break;
-  case 'team':if(inGame)syncTeam(m.team,m.board);else if(m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board,m.st);break;
+  case 'go':if(myRole&&m.team.some(t=>t.pid===NET.me)){if(m.ns&&typeof nastApply==='function')nastApply(m.ns);startNet(m.team,m.board,m.st)}break;
+  case 'team':if(inGame)syncTeam(m.team,m.board);else if(m.team.some(t=>t.pid===NET.me)){if(m.ns&&typeof nastApply==='function')nastApply(m.ns);startNet(m.team,m.board,m.st)}break;
   case 'end':if(inGame)showEnd(m.reason,null,m.board);break;
   case 'p':onPlayer(m);break;
   case 's':if(inGame&&!NET.host)applySnap(m);break;
@@ -134,7 +134,7 @@ function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=randStart(); 
   const nD=team.length;for(const p of pick('napalovac'))add('napalovac',p,1);
   team.forEach((t,i)=>{if(t.r==='napalovac'){const[x,z]=napSpawn(s[0],s[1],28,40);t.x=r2(x);t.z=r2(z);t.f=0;return}const a=i/nD*Math.PI*2,p=new THREE.Vector3(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(p,.45);t.x=r2(p.x);t.z=r2(p.z);t.f=r2(Math.PI)});
   const board={};for(const t of team)if(t.pid)board[t.pid]=newRow(t);
-  NET.send({t:'go',team,board,st:s});startNet(team,board,s)}
+  NET.send({t:'go',team,board,st:s,ns:nastCur()});startNet(team,board,s)}
 const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0,psi:0,nb:0,nk:0,nz:0,nc:0});
 function startNet(team,board,st){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.host===NET.me;NET.board=board||{};evQ=[];sendT=0;snapN=0;lastSnap=null;lastAct=performance.now();
   resetGame(team,st);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
@@ -148,7 +148,9 @@ function startNet(team,board,st){NET.on=true;inGame=true;NET.host=!!lobby&&lobby
 /* ---------- hostitel: příchody a odchody hráčů ---------- */
 function replaceMesh(e,r,v){scene.remove(e.mesh);e.mesh=makeRole(r,v);scene.add(e.mesh);e.role=r;e.v=v;e.topH=undefined}
 function teamMsg(){return ents.map(e=>({r:e.role,v:e.v,pid:e.pid,n:e.name,x:r2(e.pos.x),z:r2(e.pos.z),f:r2(e.face)}))}
-function sendTeam(){NET.send({t:'team',team:teamMsg(),board:NET.board,st:curStart});renderBoard()}
+/* nastavení hry, se kterým hraje hostitel (nastaveni.js) – posílá se ve zprávách go a team */
+function nastCur(){return typeof NAST_CUR!=='undefined'?NAST_CUR:{}}
+function sendTeam(){NET.send({t:'team',team:teamMsg(),board:NET.board,st:curStart,ns:nastCur()});renderBoard()}
 function hostJoin(pid){if(entBy(pid))return sendTeam();const p=lobby&&lobby.hraci.find(x=>x.id===pid);if(!p||!p.r)return;
   let e=ents.find(x=>!x.human&&x.role===p.r);
   if(!e){const L=leader(),[x,z]=p.r==='napalovac'?napSpawn(L.pos.x,L.pos.z,30,45):spawnPoint(L.pos.x,L.pos.z,2,5);e=newEnt(p.r,false,ents.length,p.v);e.pos.set(x,0,z);ents.push(e)}

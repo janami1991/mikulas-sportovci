@@ -104,7 +104,7 @@ function dpReset(){dpInit();for(const v of DP.veh)dpFree(v);DP.veh=[];DP.spT=[rn
   DP.train=null;DP.trN=0;DP.trDir=Math.random()<.5?1:-1;DP.trT=rnd(15,40);DP.whistle=0;for(const m of DP.tr)m.visible=false;
   for(const p of DP.smoke)scene.remove(p.m);DP.smoke=[];
   /* na začátku už po silnici něco jede */
-  if(DP.rd&&isHost())for(let i=0;i<8;i++){const dir=i%2?1:-1;dpSpawn(dir,rnd(30,DP.rd.L-30))}}
+  if(DP.rd&&isHost())for(let i=0;i<Math.min(8,DPC.maxVeh);i++){const dir=i%2?1:-1;dpSpawn(dir,rnd(30,DP.rd.L-30))}}
 function dpType(){const r=Math.random();return r<.68?0:r<.86?1:2}
 function dpSpawn(dir,s){const P=DP.rd;if(!P||DP.veh.length>=DPC.maxVeh)return;const t=dpType(),T=VT[t];
   if(s===undefined)s=dir>0?-T.len:P.L+T.len;
@@ -175,7 +175,7 @@ function dpUpd(dt){if(!DP.init)return;const host=isHost(),RD=DP.rd;
       const m=v.mesh;m.visible=!player||Math.abs(v.pos.x-player.pos.x)+Math.abs(v.pos.z-player.pos.z)<300;m.position.copy(v.pos);m.rotation.set(-Math.atan2(hf-hb,Math.hypot(fx-bx,fz-bz)||1),v.face,0,'YXZ');const r=m.userData.r||.34;m.userData.wheels.forEach(w=>w.rotation.x+=v.spd*dt/r)}}
   /* --- vlak (hostitel plánuje, ostatní dostávají polohu) --- */
   const RL=DP.rl,T=DP.train;
-  if(RL&&host){if(!T){DP.trT-=dt;if(DP.trT<=0&&DP.trN<DPC.trainN+2){DP.trN++;const dir=DP.trDir;DP.trDir=-dir;DP.train={dir,s:dir>0?-5:RL.L+5,spd:DPC.trainV};DP.whistle=0}}
+  if(RL&&host){if(!T){DP.trT-=dt;if(DP.trT<=0&&DPC.trainN>0&&DP.trN<DPC.trainN+2){DP.trN++;const dir=DP.trDir;DP.trDir=-dir;DP.train={dir,s:dir>0?-5:RL.L+5,spd:DPC.trainV};DP.whistle=0}}
     else{T.s+=T.dir*T.spd*dt;const back=T.s-T.dir*TRAIN_LEN;if(T.dir>0?back>RL.L+30:back<-30){DP.train=null;DP.trT=Math.max(20,CFG.limit/DPC.trainN-(RL.L+TRAIN_LEN)/DPC.trainV)*rnd(.8,1.2)}}}
   else if(RL&&T&&T.ts!==undefined){T.s+=T.dir*T.spd*dt;const d=T.ts-T.s;if(Math.abs(d)>30)T.s=T.ts;else T.s+=d*Math.min(1,dt*3)}
   const TT=DP.train;
