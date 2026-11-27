@@ -4,7 +4,7 @@ export const LIMIT = { mikulas: 1, smrtka: 1, konik: 1, prda: 1, cert: 8, napalo
 export const MAX_HRACU = 12;      // hráčů v družině (napalovači mají vlastní limit 6)
 export const MAX_SPOJENI = 22;    // včetně těch, kdo si teprve vybírají
 const MAX_ZPRAVA = 32000;
-export const STRANY = ["polnak", "stred", "pila"];   // strany (mapy); stranu hry určí ten, kdo do prázdné hry přijde první
+export const STRANY = ["polnak", "stred", "pila", "nadrazi"];   // strany (mapy); stranu hry určí ten, kdo do prázdné hry přijde první
 const cistaStrana = s => (STRANY.includes(s) ? s : "polnak");
 
 const rid = () => Math.random().toString(36).slice(2, 8);

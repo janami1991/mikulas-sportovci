@@ -283,7 +283,7 @@ try{db=await import('../db.js');window.DB=db;
   if(db.configured){const m=await Promise.race([db.loadMapa(STRANA),new Promise(r=>setTimeout(()=>r(null),8000))]);
     if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
-await load('svet.js');await load('hra.js');await load('mp.js');load('zvuky.js').catch(()=>{});
+await load('svet.js');await load('hra.js');await load('doprava.js');await load('mp.js');load('zvuky.js').catch(()=>{});
 /* odkaz na editor mapy vidí jen správci */
 if(db&&db.configured)db.whenReady().then(me=>{if(me&&me.role===3)document.getElementById('lEditor').classList.remove('hide')}).catch(()=>{});
 </script>
