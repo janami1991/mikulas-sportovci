@@ -1,6 +1,6 @@
 /* Strany (části Lidečka) – která se načte: ?strana=… v adrese, jinak poslední zvolená (localStorage), jinak Polňák.
-   Každá strana má vlastní soubor mapy (polnak.js, stred.js) a vlastní úpravy z editoru. */
-window.STRANY_DEF=[{id:'polnak',n:'Polňák'},{id:'stred',n:'Střed'}];
+   Každá strana má vlastní soubor mapy (polnak.js, stred.js, pila.js) a vlastní úpravy z editoru. */
+window.STRANY_DEF=[{id:'polnak',n:'Polňák'},{id:'stred',n:'Střed'},{id:'pila',n:'Pila'}];
 (()=>{const ok=id=>STRANY_DEF.some(s=>s.id===id);let s=new URLSearchParams(location.search).get('strana');
   if(!ok(s)){try{s=localStorage.getItem('obchuzka-strana')}catch(e){}}
   if(!ok(s))s='polnak';window.STRANA=s;window.STRANA_N=STRANY_DEF.find(x=>x.id===s).n;
