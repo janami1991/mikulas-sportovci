@@ -779,7 +779,7 @@ function applyPts(b,f,p){if(f==='house'){b.houses++;b.score+=p}else if(f==='scar
   else if(f==='bb'){b.bb=(b.bb||0)+1;b.score+=p}else if(f==='nad'){b.nad=(b.nad||0)+1;b.score+=p}else if(f==='reb'){b.reb=(b.reb||0)+1;b.score-=p}else if(f==='kombo'){b.kombo=(b.kombo||0)+1;b.score+=p}}
 function award(e,f,p,msg,ms){if(!e||!e.human)return;
   if(!NET.on){const b={score,houses,caught,scareP,penalty,psi:dogsN,kombo:komboN,nb:napSt.b,nk:napSt.k,nz:napSt.z,nc:napSt.c};applyPts(b,f,p);({score,houses,caught,scareP,penalty}=b);dogsN=b.psi;komboN=b.kombo;napSt={b:b.nb,k:b.nk,z:b.nz,c:b.nc};if(msg)toast(msg,ms);updHud();return}
-  const b=NET.board[e.pid];if(b)applyPts(b,f,p);
+  const b=NET.board[e.pid];if(b){applyPts(b,f,p);NET.bDirty=true}
   if(e.isPlayer){if(b)myStats(b);if(msg)toast(msg,ms)}else NET.send({t:'pts',pid:e.pid,f,p,m:msg||'',ms:ms||0,b:b||null})}
 function myStats(b){dogsN=b.psi||0;komboN=b.kombo||0;napSt={b:b.nb||0,k:b.nk||0,z:b.nz||0,c:b.nc||0};score=b.score;houses=b.houses;caught=b.caught;scareP=b.scareP;penalty=b.penalty;updHud()}
 function hudLabels(){const n=player&&player.nap;$('hHousesL').textContent=n?'Zásahy koulí':'Domy s družinou';$('hHousesS').classList.toggle('hide',!!n);$('hCaughtL').textContent=n?'Chycen':'Chyceno'}

@@ -144,9 +144,9 @@ function hostJoin(pid){if(entBy(pid))return sendTeam();const p=lobby&&lobby.hrac
   if(!e){const L=leader(),[x,z]=p.r==='napalovac'?napSpawn(L.pos.x,L.pos.z,30,45):spawnPoint(L.pos.x,L.pos.z,2,5);e=newEnt(p.r,false,ents.length,p.v);e.pos.set(x,0,z);ents.push(e)}
   else if(e.v!==p.v)replaceMesh(e,p.r,p.v);
   e.human=true;e.pid=pid;e.name=p.n;e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face;e.st='follow';
-  NET.board[pid]=NET.board[pid]||newRow({n:p.n,r:p.r});toast(`${p.n} se připojil(a) jako ${ROLE_N[p.r]}`,2000);sendTeam()}
+  NET.board[pid]=NET.board[pid]||newRow({n:p.n,r:p.r});NET.bDirty=true;toast(`${p.n} se připojil(a) jako ${ROLE_N[p.r]}`,2000);sendTeam()}
 function reconcile(){if(!lobby)return;const ids=new Set(lobby.hraci.map(p=>p.id));let ch=false;
-  for(const e of ents)if(e.human&&!ids.has(e.pid)){const b=NET.board[e.pid];if(b)b.left=1;toast(`${e.name||'Hráč'} odešel – postavu převzal počítač`,2000);
+  for(const e of ents)if(e.human&&!ids.has(e.pid)){const b=NET.board[e.pid];if(b){b.left=1;NET.bDirty=true}toast(`${e.name||'Hráč'} odešel – postavu převzal počítač`,2000);
     e.human=false;e.pid=null;e.name='';e.st='return';e.target=null;e.chaseCd=rnd(2,5);ch=true}
   if(ch)sendTeam()}
 function syncTeam(team,board){if(board)NET.board=board;
@@ -155,7 +155,7 @@ function syncTeam(team,board){if(board)NET.board=board;
     const isP=t.pid===NET.me;if(isP&&!e.isPlayer){e.isPlayer=true;player=e}else if(!isP)e.isPlayer=false});
   const b=NET.board[NET.me];if(b)myStats(b);renderBoard()}
 /* převzetí řízení: napalovači, postavy počítače a čas pokračují z posledního stavu */
-function becomeHost(){
+function becomeHost(){NET.bDirty=true;
   {const P=player;if(P&&isKidO(P.carry))P.carry=null}
   for(const k of kids){const c=k.code||0;if(c>=4||k.fl){k.fl=false;nesLimbs(k);k.mesh.rotation.set(0,k.face,0)}k.st=c===2||c>=4?'down':c===1?'flee':'roam';k.t=c===2?3:rnd(1,3);k.gone=c===3?2:0;k.stamina=100;k.throwCd=rnd(2,5);k.hp=1;k.freeze=0;k.turn=0;k.turnT=0;
     if(c!==2&&c<4){k.mesh.rotation.set(0,k.face,0);k.star.visible=false}}
@@ -179,7 +179,7 @@ function buildSnap(){const s={t:'s',tm:r1(timeLeft),ri,ph:grp.phase==='visit'?1:
     dg:dogsSnap(),tr:tractorsSnap(),
     k:kids.map(k=>[r2(k.pos.x),r2(k.pos.z),r2(k.face),k.gone>0?3:k.st==='down'?2:k.st==='held'?4:k.st==='fly'?5:k.st==='flee'?1:0,k.st==='held'?ents.indexOf(k.by):-1]),
     c:cars.map(c=>{if(!c.id)c.id=++carSeq;return [c.id,r2(c.pos.x),r2(c.pos.z),r2(c.face),r1(c.spd)]})};
-  if(evQ.length){s.ev=evQ;evQ=[]}if(snapN++%16===0){s.b=NET.board;s.bn=binsSnap();s.bk=bikesSnap()}return s}
+  if(evQ.length){s.ev=evQ;evQ=[]}const n16=snapN++%16===0;if(n16||NET.bDirty){s.b=NET.board;NET.bDirty=false}if(n16){s.bn=binsSnap();s.bk=bikesSnap()}return s}   /* tabulka bodů: při změně, jinak každý 16. snímek */
 let carSeq=0;
 function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.length-1);
   if(m.ri!==ri){for(let i=ri;i<m.ri&&i<route.length;i++)route[i].with=i===m.ri-1&&Math.hypot(player.pos.x-route[i].b.cx,player.pos.z-route[i].b.cz)<18;ri=m.ri;updMarks()}
@@ -277,10 +277,11 @@ function showEnd(reason,msg,board){if(board)NET.board=board;const b=NET.board[NE
 const act=()=>{lastAct=performance.now()};
 for(const ev of['keydown','pointerdown','wheel','touchstart'])addEventListener(ev,act,{capture:true,passive:true});
 addEventListener('pointermove',e=>{if(e.buttons)act()},{capture:true,passive:true});
-setInterval(()=>{if(!(NET.on&&inGame&&state==='play'))return;const idle=(performance.now()-lastAct)/1000;
+setInterval(()=>{if(!(NET.on&&inGame&&state==='play'))return;if(document.hidden){act();return}   /* skryté okno se do nečinnosti nepočítá */
+  const idle=(performance.now()-lastAct)/1000;
   if(idle>=IDLE_KICK){NET.leave('Byl jsi odpojen kvůli nečinnosti (60 s).');return}
   if(idle>=IDLE_WARN)toast(`Nečinnost – za ${Math.ceil(IDLE_KICK-idle)} s tě hra odpojí`,1100)},1000);
-document.addEventListener('visibilitychange',()=>{if(open())NET.send({t:'vis',away:document.hidden?1:0})});
+document.addEventListener('visibilitychange',()=>{act();if(open())NET.send({t:'vis',away:document.hidden?1:0})});
 
 window.__mp={renderBoard:()=>{boardT=0;renderBoard()},get lobby(){return lobby},get code(){return code},connect,hostStart,get ws(){return ws},setRole:(r,v)=>{myRole=r;if(v)myVar=v;NET.send({t:'role',r,v:myVar})},act};
 })();

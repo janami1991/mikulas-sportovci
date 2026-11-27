@@ -19,7 +19,10 @@ export class Room {
     /* hostitel: nejdřív připojený, kdo není pryč (skrytá karta); při hře přednostně s postavou */
     const kand = hraci.filter(a => !a.away && (!hraje || a.r));
     const pool = kand.length ? kand : hraci;
-    const host = pool.length ? pool.reduce((m, a) => (a.seq < m.seq ? a : m)).id : null;
+    /* hostitel zůstává, dokud je mezi kandidáty (po návratu do okna se řízení nevrací zpět) */
+    const drive = await this.io.get("host");
+    let host = drive && pool.some(a => a.id === drive) ? drive : (pool.length ? pool.reduce((m, a) => (a.seq < m.seq ? a : m)).id : null);
+    if (host !== drive) await this.io.put("host", host);
     return { t: "lobby", hraje, host, hraci: hraci.map(a => ({ id: a.id, n: a.n, r: a.r, v: a.v, away: a.away ? 1 : 0 })) };
   }
 
