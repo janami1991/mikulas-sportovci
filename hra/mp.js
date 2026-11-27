@@ -189,14 +189,18 @@ function applySnap(m){lastSnap=m;joinT=0;timeLeft=m.tm;m.ri=Math.min(m.ri,route.
   while(kids.length<m.k.length){const k=newKid(kids.length);kids.push(k)}
   while(kids.length>m.k.length){const k=kids.pop();scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}
   m.k.forEach((a,i)=>{const k=kids[i];if(k.tx===undefined){k.pos.x=a[0];k.pos.z=a[1]}k.tx=a[0];k.tz=a[1];k.tf=a[2];k.hb=a[4];if(k.code!==a[3]){if(a[3]===2)k.t=0;if(k.code===4&&a[3]!==4&&!k.fl)nesLimbs(k);k.code=a[3]}});
-  {const P=player;if(P&&isKidO(P.carry)){const k=P.carry;if(k.code===4&&ents[k.hb]===P)k.heldMe=0;else if(!k.heldMe||performance.now()-k.heldMe>1200)P.carry=null}}
+  {const P=player;if(P&&P.carry&&P.carry.nap){const n=P.carry;if(n.hb===P)n.heldMe=0;else if(!n.heldMe||performance.now()-n.heldMe>1200)P.carry=null}
+   else if(P&&isKidO(P.carry)){const k=P.carry;if(k.code===4&&ents[k.hb]===P)k.heldMe=0;else if(!k.heldMe||performance.now()-k.heldMe>1200)P.carry=null}}
   if(m.dg)dogsApply(m.dg);if(m.tr)tractorsApply(m.tr);if(m.bn)binsApply(m.bn);if(m.bk)bikesApply(m.bk);
   const seen=new Set();
   for(const a of m.c){seen.add(a[0]);let c=cars.find(x=>x.id===a[0]);if(!c){const mesh=makeCar();scene.add(mesh);c={id:a[0],mesh,pos:new THREE.Vector3(a[1],0,a[2]),face:a[3],spd:a[4],honk:0};cars.push(c)}c.tx=a[1];c.tz=a[2];c.tf=a[3];c.spd=a[4]}
   for(let i=cars.length-1;i>=0;i--)if(!seen.has(cars[i].id)){scene.remove(cars[i].mesh);cars.splice(i,1)}
   for(const ev of m.ev||[]){
     if(ev[0]==='s'){const k=kids[ev[1]];if(k)say(k,ev[2],ev[3]||undefined)}
-    else if(ev[0]==='nc'){const n=entBy(ev[1]);if(n)napOut(n,ev[2],ev[3])}
+    else if(ev[0]==='nc'){const n=entBy(ev[1]);if(n)napOut(n,ev[2],ev[3],ev[4])}
+    else if(ev[0]==='nd'){const n=entBy(ev[1]);if(n){if(ev[5])n.thr=0;napDown(n,ev[2],ev[3],ev[4]);if(n.isPlayer)n.pos.y=groundH(n.pos.x,n.pos.z)}}
+    else if(ev[0]==='nh'){const n=entBy(ev[1]),c=entBy(ev[2]);if(n&&c)napHeld(n,c)}
+    else if(ev[0]==='nt'){const n=entBy(ev[1]);if(n&&ev[8]!==NET.me){const c=entBy(ev[8]);napFly(n,c||{face:Math.atan2(ev[5],ev[7])},ev[2],ev[3],ev[4],ev[5],ev[6],ev[7]);if(!c)n.by=null}}
     else if(ev[0]==='cink'){const c=ents[ev[1]];if(c)c.jingle=1}
     else if(ev[0]==='ds'){const g=dogs[ev[1]];if(g){g.bub.textContent=ev[2];g.bub.classList.remove('hide');g.bubT=ev[3]||1400}}
     else if(ev[0]==='pb'){if(ev[1]===NET.me)biteMe()}
