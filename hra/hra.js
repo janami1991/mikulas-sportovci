@@ -1351,8 +1351,18 @@ function drawMap(){const W=mapC.width,R=W/2,sc=W/(mapBig?420:160),f=mapBig?1.7:1
   mx.fillStyle='#f59e0b';for(const g of dogs){if(g.st!=='atk'&&g.st!=='back')continue;mx.beginPath();mx.arc(g.pos.x-bx[0],g.pos.z-bx[1],1.8*f,0,Math.PI*2);mx.fill()}
   mx.fillStyle='#ef4444';for(const k of kids){if(k.gone>0)continue;mx.beginPath();mx.arc(k.pos.x-bx[0],k.pos.z-bx[1],2.2*f,0,Math.PI*2);mx.fill()}
   mx.restore();const a=mapBig?2:1;
+  if(mapBig)mapNums(W,R,sc,P);
   mx.save();mx.translate(R,R);mx.rotate(cam.yaw-P.face+Math.PI);mx.scale(a,a);mx.fillStyle='#ffd166';mx.beginPath();mx.moveTo(0,-11);mx.lineTo(7,8);mx.lineTo(0,4);mx.lineTo(-7,8);mx.closePath();mx.fill();mx.restore();
   mx.save();mx.translate(R,R);mx.rotate(cam.yaw);mx.fillStyle='#fff';mx.font=`bold ${20*a}px sans-serif`;mx.textAlign='center';mx.textBaseline='middle';mx.fillText('S',0,-R+16*a);mx.restore()}
+
+/* velká mapa: čísla popisná uvnitř budov (text vždy svisle, velikost podle budovy) */
+function mapNums(W,R,sc,P){const c=Math.cos(cam.yaw),sn=Math.sin(cam.yaw),half=W/2+20;
+  mx.save();mx.textAlign='center';mx.textBaseline='middle';mx.lineJoin='round';
+  for(const b of B){const t=houseNum(b);if(!t)continue;const dx=(b.cx-P.pos.x)*sc,dz=(b.cz-P.pos.z)*sc,x=dx*c-dz*sn,y=dx*sn+dz*c;
+    if(Math.abs(x)>half||Math.abs(y)>half)continue;
+    const w=Math.min(b.x1-b.x0,b.z1-b.z0)*sc,fs=Math.max(11,Math.min(16,w/Math.max(2,t.length)*1.5));
+    mx.font=`bold ${fs}px sans-serif`;mx.lineWidth=3;mx.strokeStyle='rgba(10,15,30,.85)';mx.strokeText(t,R+x,R+y);mx.fillStyle='#fff';mx.fillText(t,R+x,R+y)}
+  mx.restore()}
 
 /* navádění: šipka nad hráčem ukazuje k Mikulášovi (Mikuláš: k domu); u cíle zmizí */
 const navArrow=(()=>{const sh=new THREE.Shape();sh.moveTo(0,.62);sh.lineTo(.42,.08);sh.lineTo(.16,.08);sh.lineTo(.16,-.45);sh.lineTo(-.16,-.45);sh.lineTo(-.16,.08);sh.lineTo(-.42,.08);sh.closePath();
