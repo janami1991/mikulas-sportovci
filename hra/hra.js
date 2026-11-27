@@ -556,7 +556,7 @@ function spawnCar(){const P=(leader()||player).pos;let a=-1,b=-1;
   if(b<0)return;const path=findPath(a,b,CG);if(!path||path.length<10)return;
   const m=makeCar();scene.add(m);const c={mesh:m,path,i:1,pos:new THREE.Vector3(path[0][0],0,path[0][1]),face:0,spd:6,honk:0};
   c.face=Math.atan2(path[1][0]-path[0][0],path[1][1]-path[0][1]);cars.push(c)}
-function updCars(dt){carT-=dt;if(carT<=0){if(cars.length<CFG.aut)spawnCar();carT=rnd(8,20)}
+function updCars(dt){carT-=dt;if(carT<=0){const n=cars.length;if(n<CFG.aut)spawnCar();carT=cars.length>n||n>=CFG.aut?rnd(8,20):1}   /* nepovedený výjezd (krátká trasa) zkusí znovu za 1 s */
   for(let ci=cars.length-1;ci>=0;ci--){const c=cars[ci],p=c.path;
     if(c.i>=p.length){scene.remove(c.mesh);cars.splice(ci,1);continue}
     const[ax,az]=p[c.i-1],[bx,bz]=p[c.i];let dx=bx-ax,dz=bz-az;const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
