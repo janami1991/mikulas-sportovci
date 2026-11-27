@@ -169,7 +169,7 @@ button.big2{background:transparent}
  <div id="topBtns"><button class="sbtn" id="bEnd" type="button">Ukončit obchůzku</button><button class="sbtn" id="bPause" type="button">Pauza</button><button class="sbtn" id="bSound" type="button">Zvuk: zap</button></div>
  <div id="staminaL">Výdrž</div>
  <div id="staminaW"><div id="stamina"></div></div>
- <div id="warn" class="hide">Jsi mimo Polňák – domy tady nepočítáme</div>
+ <div id="warn" class="hide"></div>
  <div id="prompt" class="hide"><span id="promptT"></span><div class="bar"><i id="promptBar"></i></div></div>
  <div id="otz" class="hide"><div class="ot">Mikuláš se ptá dětí</div><button type="button" data-q="0">1 · Umíš se modlit?</button><button type="button" data-q="1">2 · Poslouchal jsi?</button><button type="button" data-q="2">3 · Jakou máme adventní neděli?</button><button type="button" id="otzN" class="hide">Q · Dát nadílku</button></div>
  <div id="splat"></div>
@@ -232,6 +232,7 @@ button.big2{background:transparent}
   <p>Až 12 hráčů v jedné družině a k tomu až 6 napalovačů proti ní, body sbírá každý sám za sebe. Postavy, které nikdo nevybere, hraje počítač. Kdo 60 s nic nedělá, toho hra odpojí.</p>
   <div id="mpJoin" class="card">
    <div><div class="lbl">Přezdívka</div><input class="inp" id="mpName" maxlength="16" autocomplete="nickname"></div>
+   <div><div class="lbl">Strana nové hry</div><div class="opts" id="mpSide"></div></div>
    <div><div class="lbl">Hry</div><div class="rooms" id="mpRooms">Načítám…</div></div>
   </div>
   <div id="mpRoom" class="card hide">
@@ -271,14 +272,15 @@ button.big2{background:transparent}
 <div id="zdroj">Mapa © přispěvatelé OpenStreetMap · Adresy, výšky budov, střechy a stromy © ČÚZK (CC BY 4.0)</div>
 
 <script src="three.min.js"></script>
-<script src="polnak.js"></script>
-<script src="upravy.js"></script>
+<script src="strany.js"></script>
 <script type="module">
-/* úpravy mapy uložené v editoru (databáze); když databáze nejde, zůstane soubor upravy.js */
+/* mapa zvolené strany; úpravy mapy uložené v editoru (databáze); když databáze nejde, zůstane soubor upravy.js (jen Polňák) */
 const load=s=>new Promise((ok,ko)=>{const e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=ko;document.body.appendChild(e)});
+document.getElementById('loading').textContent='Načítám Lidečko – '+STRANA_N+'…';
+await load(STRANA+'.js');if(STRANA==='polnak')await load('upravy.js').catch(()=>{});
 let db=null;
 try{db=await import('../db.js');window.DB=db;
-  if(db.configured){const m=await Promise.race([db.loadMapa(),new Promise(r=>setTimeout(()=>r(null),8000))]);
+  if(db.configured){const m=await Promise.race([db.loadMapa(STRANA),new Promise(r=>setTimeout(()=>r(null),8000))]);
     if(m&&m.json&&(!window.UPRAVY||(m.t||0)>=(window.UPRAVY.t||0)))window.UPRAVY=JSON.parse(m.json)}}
 catch(e){console.warn('Úpravy mapy z databáze se nenačetly',e)}
 await load('svet.js');await load('hra.js');await load('mp.js');load('zvuky.js').catch(()=>{});

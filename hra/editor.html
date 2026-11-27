@@ -85,6 +85,7 @@ button{cursor:pointer}
 <div id="top">
  <button class="btn" id="bUndo" type="button" title="Ctrl+Z">↶ Zpět</button>
  <button class="btn" id="bDay" type="button">Noc</button>
+ <select class="btn" id="bStrana" title="Strana" aria-label="Strana"></select>
  <button class="btn pri" id="bSave" type="button" disabled>Uložit změny</button>
  <a class="btn" href="index.html" style="text-decoration:none;color:#eee">← Menu</a>
 </div>
@@ -104,13 +105,16 @@ button{cursor:pointer}
 </form></div>
 <div id="zdroj">Mapa © přispěvatelé OpenStreetMap · Terén, adresy, budovy a stromy © ČÚZK (CC BY 4.0)</div>
 <script src="three.min.js"></script>
-<script src="polnak.js"></script>
-<script src="upravy.js"></script>
+<script src="strany.js"></script>
 <script type="module">
 /* editor je jen pro správce (role 3); ukládá do databáze, neuložený koncept drží v prohlížeči */
 const $=id=>document.getElementById(id),load=s=>new Promise((ok,ko)=>{const e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=ko;document.body.appendChild(e)});
 const canon=u=>JSON.stringify(Object.assign({},u,{t:0}));
 let db=null;try{db=await import('../db.js')}catch(e){}
+/* strana: přepínač nahoře, mapa a úpravy se načtou pro zvolenou stranu */
+{const sel=$('bStrana');sel.innerHTML=STRANY_DEF.map(s=>`<option value="${s.id}"${s.id===STRANA?' selected':''}>${s.n}</option>`).join('');
+  sel.onchange=()=>goStrana(sel.value);$('loading').textContent='Načítám Lidečko – '+STRANA_N+'…';
+  await load(STRANA+'.js');if(STRANA==='polnak')await load('upravy.js').catch(()=>{})}
 async function gate(){
   if(!db||!db.configured){$('gMsg').textContent='Databáze není dostupná – editor teď nejde otevřít.';return false}
   const me=await db.whenReady();if(me&&me.role===3)return true;
@@ -120,12 +124,12 @@ async function gate(){
     try{const m=await db.login($('gJ').value,$('gH').value);if(m.role===3)res(true);else{await db.logout();$('gErr').textContent='Tento účet není správce.'}}catch(err){$('gErr').textContent=err.message}}})}
 if(await gate()){
   $('gMsg').textContent='Načítám uložené úpravy…';$('gFields').classList.add('hide');
-  let pub=null,pubU=null;try{pub=await db.loadMapa();if(pub&&pub.json)pubU=JSON.parse(pub.json)}catch(e){console.warn(e)}
+  let pub=null,pubU=null;try{pub=await db.loadMapa(STRANA);if(pub&&pub.json)pubU=JSON.parse(pub.json)}catch(e){console.warn(e)}
   if(!pubU&&window.UPRAVY)pubU=window.UPRAVY;
-  let draft=null;try{draft=JSON.parse(localStorage.getItem('lidecko-upravy'))}catch(e){}
+  let draft=null;try{draft=JSON.parse(localStorage.getItem('lidecko-upravy'+(STRANA!=='polnak'?'-'+STRANA:'')))}catch(e){}
   const useDraft=!!draft&&(!pubU||(draft.t||0)>(pubU.t||0))&&canon(draft)!==(pubU?canon(pubU):canon({}));
   window.UPRAVY=useDraft?draft:pubU;
-  window.EDDB={pub:pubU,info:pub?{t:pub.t,by:pub.by}:null,draft:useDraft,save:(json,t)=>db.saveMapa(json,t),me:db.me()};
+  window.EDDB={pub:pubU,info:pub?{t:pub.t,by:pub.by}:null,draft:useDraft,save:(json,t)=>db.saveMapa(json,t,STRANA),me:db.me()};
   $('gate').remove();await load('svet.js');await load('editor.js');
 }
 </script>

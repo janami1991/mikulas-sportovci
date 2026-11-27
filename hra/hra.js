@@ -21,11 +21,8 @@ const POSTAVY = [
   {id:'mikulas', n:'Mikuláš', d:'vede družinu'},
   {id:'napalovac', n:'Napalovač', d:'koule, zvonce, nadílka'},
 ];
-const STRANY = [
-  {id:'polnak', n:'Polňák', d:M.b.filter(b=>b.v).length+' domů'},
-  {id:'s2', n:'Strana 2', d:'brzy', off:1},{id:'s3', n:'Strana 3', d:'brzy', off:1},
-  {id:'s4', n:'Strana 4', d:'brzy', off:1},{id:'s5', n:'Strana 5', d:'brzy', off:1},
-];
+/* strany: načtená je jen jedna (STRANA z strany.js); výběr jiné stránku znovu načte */
+const STRANY = STRANY_DEF.map(x=>({id:x.id,n:x.n,d:x.id===STRANA?M.b.filter(b=>b.v).length+' domů':''}));
 const POKRIK = ['Čerte, čerte, nechytíš mě!','Ty máš ale smradlavý kožich!','Bééé!','Pojď si pro mě!','Mikuláš už spí!','Kde máš ocas?','Haha, ty mě nedoženeš!','Čertí babička volá!'];
 const AU = ['Au! Au!','Už budu hodný!','Jauvajs!','To bolí!','Pustííí!'];
 const DUM = ['Děti řekly básničku.','Malá Anička zazpívala písničku.','Honzík se schoval pod stůl.','Nadílka předána.','Babička nabídla koláč.','Děti slíbily, že budou hodné.'];
@@ -299,7 +296,7 @@ const ROLE={
   mikulas:{n:'Mikuláš',chuze:3.52,beh:5.6,drain:18,dosah:2.6,sila:1/8,respekt:1,   akce:'Pochválit děti',pokuta:10},
 };
 const DRUZINA=['mikulas','cert','cert','cert','cert','cert','konik','smrtka','prda'];
-const VISIT_S=25, ROUTE_N=18, GROUP_SPD=1.35;
+const VISIT_S=10, ROUTE_N=50, GROUP_SPD=1.35;
 
 /* ===================== STAV HRY ===================== */
 const cam={yaw:Math.PI,pitch:0.42,dist:7};
@@ -327,7 +324,16 @@ function newKid(i){const m=makeKid(i);scene.add(m);const[cx,cz]=grpCenter();cons
   return {i,mesh:m,pos:new THREE.Vector3(x,0,z),face:0,phase:rnd(0,6),st:'roam',t:rnd(1,3),stamina:100,throwCd:rnd(2,5),bub:b,bubT:0,star,turn:0,turnT:0,gone:0,freeze:0}}
 function say(k,t,ms){NET.ev(['s',k.i,t,ms||0]);k.bub.textContent=t;k.bub.classList.remove('hide');k.bubT=ms||2200}
 
-/* trasa: domy na Polňáku blízko cesty, postupně nejbližší další */
+/* náhodný start: bod na silnici (ne pěšina) uvnitř strany, vybraný úměrně délce silnic – hraje se pokaždé jinde */
+function randStart(){const segs=[];let tot=0;
+  for(const r of M.r){if(r.t==='footway'||r.t==='path'||r.t==='steps'||r.t==='track'||r.br)continue;
+    for(let i=1;i<r.p.length;i++){const a=r.p[i-1],b=r.p[i],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<.5)continue;
+      const mx=(a[0]+b[0])/2,mz=(a[1]+b[1])/2;if(!inPoly(mx,mz,M.poly))continue;segs.push([a,b,L]);tot+=L}}
+  for(let k=0;k<40&&tot>0;k++){let u=Math.random()*tot;for(const[a,b,L]of segs){if((u-=L)>0)continue;const f=Math.random(),x=a[0]+(b[0]-a[0])*f,z=a[1]+(b[1]-a[1])*f;
+      if(inPoly(x,z,M.poly)&&!inWater(x,z,1)&&!insideAny(x,z,1))return [Math.round(x*100)/100,Math.round(z*100)/100];break}}
+  return (M.start||[0,0]).slice()}
+let curStart=null;
+/* trasa: domy strany blízko cesty, postupně nejbližší další */
 function makeRoute(sx,sz){const cand=B.filter(b=>b.v).map(b=>({b,d:doorOf(b)})).filter(o=>o.d.road<22);
   const out=[];let x=sx,z=sz;while(out.length<ROUTE_N&&cand.length){let bi=0,bd=1e9;cand.forEach((o,i)=>{const d=Math.hypot(o.d.x-x,o.d.z-z);if(d<bd){bd=d;bi=i}});
     const o=cand.splice(bi,1)[0];
@@ -342,11 +348,11 @@ function planTo(i,from){const L=from||leader(),o=route[i];if(!o)return;grp.auto=
 function spTeam(){const cv=[1,2,3,4,5].filter(v=>!(selChar==='cert'&&v===selVar));let ci=0,taken=false;
   const t=DRUZINA.map(r=>{const isP=!taken&&r===selChar;if(isP)taken=true;return {r,v:r==='cert'?(isP?selVar:cv[ci++%cv.length]):1,pid:isP?'me':null}});
   if(selChar==='napalovac')t.push({r:'napalovac',v:1,pid:'me'});return t}
-function resetGame(team){HINT.clear();
+function resetGame(team,st){HINT.clear();
   for(const e of ents)scene.remove(e.mesh);for(const k of kids){scene.remove(k.mesh);scene.remove(k.star);k.bub.remove()}for(const b of balls)scene.remove(b.m);
   for(const c of cars)scene.remove(c.mesh);cars=[];carT=rnd(6,12);
   clearRes();clearBins();clearBikes();clearTractors();for(const b of nballs)scene.remove(b.m);nballs.length=0;napSt={b:0,k:0,z:0,c:0};ents=[];kids=[];balls=[];score=0;houses=0;caught=0;scareP=0;penalty=0;dogsN=0;komboN=0;timeLeft=CFG.limit;ri=0;
-  const s=M.start||[0,0];player=null;
+  const s=curStart=st||randStart();player=null;
   /* čerti v družině mají každý jiný vzhled; hráč-čert ten, který si vybral */
   team=team||spTeam();
   team.forEach((t,i)=>{const e=addEnt(t,i,team.length);if(t.x===undefined){if(e.nap){/* napalovač začíná kus od družiny */const[x,z]=napSpawn(s[0],s[1],28,40);e.pos.set(x,0,z)}else{const a=i/team.length*Math.PI*2;e.pos.set(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(e.pos,.45)}}});
@@ -825,7 +831,7 @@ function update(dt){
   for(let i=puffs.length-1;i>=0;i--){const p=puffs[i];p.t-=dt;p.v.y-=9*dt;p.m.position.addScaledVector(p.v,dt);p.m.scale.setScalar(Math.max(.1,p.t/.7));if(p.t<=0||p.m.position.y<p.g){scene.remove(p.m);puffs.splice(i,1)}}
   /* ukazatele */
   const[gx,gz]=grpCenter(),far=Math.hypot(P.pos.x-gx,P.pos.z-gz)>28;
-  $('warn').textContent=!inPoly(P.pos.x,P.pos.z,M.poly)?'Jsi mimo Polňák':'Družina je daleko – vrať se k ní';
+  $('warn').textContent=!inPoly(P.pos.x,P.pos.z,M.poly)?'Jsi mimo stranu '+STRANA_N+' – domy tady nepočítáme':'Družina je daleko – vrať se k ní';
   $('warn').classList.toggle('hide',(P.nap||!far)&&inPoly(P.pos.x,P.pos.z,M.poly));
   if(grp.phase==='visit'){$('prompt').classList.remove('hide');$('promptT').textContent=P.nap?`Družina je u domu ${route[ri].b.adr||''} – ještě ${Math.ceil(grp.t)} s · u Mikuláše ${isTouch?'tlačítko':'Q'}: ukrást nadílku`:`${route[ri].b.adr||'Dům'} (${ri+1}/${route.length}) – zbývá ${Math.ceil(grp.t)} s · ${isTouch?'tlačítko':'Q'}: ${P.role==='mikulas'&&otz.ri===ri&&otz.st===2?'Dát nadílku':ROLE[P.role].akce}`;
     $('promptBar').style.width=((VISIT_S-grp.t)/VISIT_S*100)+'%'}
@@ -1362,7 +1368,7 @@ function updNav(){const P=player;if(!navOn||!P){navArrow.visible=false;return}
   navArrow.position.set(P.pos.x,P.pos.y+P.topH+.55+Math.sin(performance.now()/260)*.08,P.pos.z);navArrow.rotation.y=Math.atan2(dx,dz)}
 
 /* ===================== MENU / KONEC ===================== */
-let selChar=store('obchuzka-postava')||'cert',selSide='polnak',selVar=+store('obchuzka-cert')||1;
+let selChar=store('obchuzka-postava')||'cert',selSide=STRANA,selVar=+store('obchuzka-cert')||1;
 if(!POSTAVY.some(p=>p.id===selChar&&!p.off))selChar='cert';
 /* (i) u postav: účel a schopnosti (číselné údaje odpovídají ROLE, CFG, NAP) */
 const SPOL=`<li>Přemoženého (ležícího) napalovače zvedne <b>F</b> a nosí nad hlavou nejvýš 30 s; <b>F / Mezerník</b> = hodit. Zásah jiného napalovače = <b>kombo +15</b>.</li><li>Na kolo u domu nasedne <b>B</b> (Shift / Běh = rychle, bere sílu; <b>B</b> = sesednout).</li>`;
@@ -1402,7 +1408,7 @@ const VARIANTY=[1,2,3,4,5].map(v=>({id:v,n:String(v)}));
 function charMenu(){opts($('oChar'),POSTAVY,selChar,v=>{selChar=v;store('obchuzka-postava',v);$('varW').classList.toggle('hide',v!=='cert')},o=>o.id+':'+(o.id==='cert'?selVar:1));
   opts($('oVar'),VARIANTY,selVar,v=>{selVar=+v;store('obchuzka-cert',selVar);const im=$('oChar').querySelector('[data-id=cert] img');if(im)im.src=thumbs('cert:'+selVar)},o=>'cert:'+o.id+':h');
   $('varW').classList.toggle('hide',selChar!=='cert');fillThumbs($('oVar'));fillThumbs($('oChar'))}
-charMenu();opts($('oSide'),STRANY,selSide,v=>selSide=v);
+charMenu();opts($('oSide'),STRANY,selSide,v=>{if(v!==STRANA)goStrana(v,{scr:'sp'})});
 $('keysPC').classList.toggle('hide',isTouch);$('keysTouch').classList.toggle('hide',!isTouch);
 function showBest(el){const b=store('obchuzka-rekord');el.textContent=b?`Tvůj rekord: ${b} bodů`:''}
 showBest($('best'));
@@ -1434,7 +1440,7 @@ const zesc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;
 const zebScr=id=>{for(const x of['menu','sp','end','zebS'])$(x).classList.toggle('hide',x!==id);if($('mp'))$('mp').classList.add('hide')};
 const zebOn=()=>!!(window.DB&&DB.configured&&DB.topScores);
 const zebAdm=()=>{try{const m=window.DB&&DB.me&&DB.me();return !!(m&&m.role===3)}catch(e){return false}};
-const zebRow=(z,i,me,del)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span>${del?` <button type="button" class="zdel" data-zdel="${zesc(z.id)}" title="Smazat záznam (správce)">✕</button>`:''}</span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
+const zebRow=(z,i,me,del)=>{const d=z.ts?new Date(z.ts):null;return `<span class="${me?'me':''}">${i+1}.</span><span class="n ${me?'me':''}">${zesc(z.n)} <span class="r">${(STRANY_DEF.find(x=>x.id===(z.st||'polnak'))||{n:''}).n} · ${(ROLE[z.r]||{}).n||''}${z.mp?' · ve více':''}${d?' · '+d.getDate()+'. '+(d.getMonth()+1)+'. '+d.getFullYear():''}</span>${del?` <button type="button" class="zdel" data-zdel="${zesc(z.id)}" title="Smazat záznam (správce)">✕</button>`:''}</span><span class="r">${z.h} domů</span><b class="${me?'me':''}">${z.s}</b>`};
 async function zebLoad(el,n,del){if(!zebOn()){el.innerHTML='<span class="h" style="grid-column:1/-1">Žebříček teď není dostupný.</span>';return}
   try{const L=await DB.topScores(n||10);el.innerHTML=L.length?`<span class="h"></span><span class="h">Hráč</span><span class="h"></span><span class="h" style="text-align:right">Body</span>`+L.map((z,i)=>zebRow(z,i,z.id===ZEB.saved,del&&zebAdm())).join(''):'<span class="h" style="grid-column:1/-1">Zatím tu nikdo není – buď první!</span>';
     el.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=async()=>{if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='Smazat?';return}b.disabled=true;try{await DB.delScore(b.dataset.zdel);zebLoad(el,n,del)}catch(e){console.warn(e);b.textContent='Nepovedlo se'}})}
@@ -1444,12 +1450,15 @@ function zebEnd(st,name){ZEB.st=st;ZEB.saved=null;const ok=zebOn()&&st.s>0;$('ze
   $('zebName').value=(name||store('obchuzka-jmeno')||'').slice(0,20);$('zebEnd').innerHTML='';if(zebOn())zebLoad($('zebEnd'),10)}
 $('zebSave').onclick=async()=>{if(ZEB.busy||!ZEB.st||ZEB.saved)return;const n=$('zebName').value.trim().replace(/\s+/g,' ').slice(0,20);
   if(!n){$('zebMsg').textContent='Napiš přezdívku.';$('zebName').focus();return}store('obchuzka-jmeno',n);ZEB.busy=true;$('zebMsg').textContent='Zapisuji…';
-  try{ZEB.saved=await DB.addScore({n,r:ZEB.st.r,s:Math.round(ZEB.st.s),h:ZEB.st.h|0,c:ZEB.st.c|0,p:ZEB.st.p|0,mp:!!ZEB.st.mp});$('zebMsg').textContent='Zapsáno.';$('zebSave').disabled=true;$('zebW').classList.add('hide');zebLoad($('zebEnd'),10)}
+  const z={n,r:ZEB.st.r,s:Math.round(ZEB.st.s),h:ZEB.st.h|0,c:ZEB.st.c|0,p:ZEB.st.p|0,mp:!!ZEB.st.mp,st:STRANA};
+  try{try{ZEB.saved=await DB.addScore(z)}
+    catch(e){/* starší pravidla databáze (bez strany, nejvýš 18 domů): zapíše aspoň bez strany */if(e&&e.code!=='permission-denied')throw e;const{st,...z2}=z;z2.h=Math.min(z2.h,18);ZEB.saved=await DB.addScore(z2)}$('zebMsg').textContent='Zapsáno.';$('zebSave').disabled=true;$('zebW').classList.add('hide');zebLoad($('zebEnd'),10)}
   catch(e){console.warn(e);$('zebMsg').textContent='Zápis se nepovedl.'}ZEB.busy=false};
 $('zebName').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')$('zebSave').click()});
 $('bZeb').onclick=()=>{zebScr('zebS');zebLoad($('zebList'),20,true)};
 $('zebBack').onclick=()=>zebScr('menu');
 $('bSingle').onclick=()=>zebScr('sp');$('spBack').onclick=()=>zebScr('menu');
+{const q=new URLSearchParams(location.search);if(q.get('scr')==='sp'){zebScr('sp');q.delete('scr');try{history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:''))}catch(e){}}}   /* po přepnutí strany zpět na výběr */
 
 /* ===================== SMYČKA ===================== */
 let last=performance.now();

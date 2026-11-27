@@ -20,10 +20,10 @@ export class Mistnost extends DurableObject {
   }
   async fetch(req) {
     if (new URL(req.url).pathname === "/stav") return Response.json(await this.room.prehled());
-    const jmeno = new URL(req.url).searchParams.get("jmeno") || "";
+    const jmeno = new URL(req.url).searchParams.get("jmeno") || "", strana = new URL(req.url).searchParams.get("strana") || "";
     const [klient, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
-    await this.room.open(server, jmeno);
+    await this.room.open(server, jmeno, strana);
     return new Response(null, { status: 101, webSocket: klient });
   }
   async webSocketMessage(ws, msg) { await this.room.msg(ws, msg); }

@@ -4,6 +4,8 @@ export const LIMIT = { mikulas: 1, smrtka: 1, konik: 1, prda: 1, cert: 8, napalo
 export const MAX_HRACU = 12;      // hráčů v družině (napalovači mají vlastní limit 6)
 export const MAX_SPOJENI = 22;    // včetně těch, kdo si teprve vybírají
 const MAX_ZPRAVA = 32000;
+export const STRANY = ["polnak", "stred"];   // strany (mapy); stranu hry určí ten, kdo do prázdné hry přijde první
+const cistaStrana = s => (STRANY.includes(s) ? s : "polnak");
 
 const rid = () => Math.random().toString(36).slice(2, 8);
 const cisteJmeno = s => String(s || "").replace(/[<>&"'`]/g, "").trim().slice(0, 16) || "Hráč";
@@ -23,13 +25,15 @@ export class Room {
     const drive = await this.io.get("host");
     let host = drive && pool.some(a => a.id === drive) ? drive : (pool.length ? pool.reduce((m, a) => (a.seq < m.seq ? a : m)).id : null);
     if (host !== drive) await this.io.put("host", host);
-    return { t: "lobby", hraje, host, hraci: hraci.map(a => ({ id: a.id, n: a.n, r: a.r, v: a.v, away: a.away ? 1 : 0 })) };
+    const strana = cistaStrana(await this.io.get("strana"));
+    return { t: "lobby", hraje, host, strana, hraci: hraci.map(a => ({ id: a.id, n: a.n, r: a.r, v: a.v, away: a.away ? 1 : 0 })) };
   }
 
   /* přehled pro seznam místností: počet hráčů s postavou, všech připojených a jestli se hraje */
   async prehled() {
     const h = this.zive().map(w => this.io.att(w));
     return { hraci: h.filter(a => a.r).length, pripojeni: h.length, hraje: h.length ? !!(await this.io.get("hraje")) : false,
+             strana: h.length ? cistaStrana(await this.io.get("strana")) : null,
              seznam: h.map(a => ({ n: a.n, r: a.r || "" })) };   /* přezdívky a postavy pro seznam her */
   }
 
@@ -38,13 +42,16 @@ export class Room {
     for (const w of this.zive(bez)) this.io.send(w, s);
   }
 
-  async open(ws, jmeno) {
+  async open(ws, jmeno, strana) {
     if (this.zive(ws).length >= MAX_SPOJENI) {
       this.io.send(ws, JSON.stringify({ t: "plno" }));
       this.io.close(ws, 4000, "plno");
       return;
     }
-    if (!this.zive(ws).length) await this.io.put("hraje", false);   /* prázdná místnost začíná znovu */
+    if (!this.zive(ws).length) {   /* prázdná místnost začíná znovu; strana podle zakladatele */
+      await this.io.put("hraje", false);
+      await this.io.put("strana", cistaStrana(strana));
+    }
     const seq = ((await this.io.get("seq")) || 0) + 1;
     await this.io.put("seq", seq);
     const a = { id: rid(), seq, n: cisteJmeno(jmeno), r: "", v: 1, away: 0 };

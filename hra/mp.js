@@ -32,6 +32,8 @@ let errT=0;function mpErr(t,hl){const e=$('mpErr');e.textContent=t||'';e.classLi
 $('bMulti').onclick=()=>{showScreen('mp');renderMp()};
 $('mpBack').onclick=()=>{disconnect();showScreen('menu')};
 $('mpName').value=store('obchuzka-jmeno')||'';
+/* strana nové hry (kdo přijde do prázdné hry první, určí stranu); jiná strana = znovu načíst stránku */
+opts($('mpSide'),STRANY,STRANA,v=>{if(v!==STRANA)goStrana(v,{scr:'mp'})});
 const nameOk=()=>{const n=$('mpName').value.trim();if(!n){mpMsg('Napiš přezdívku.');$('mpName').focus();return null}store('obchuzka-jmeno',n);return n};
 /* ---------- seznam pevných her 1–3 (stav ze serveru, obnovuje se každých 10 s) ---------- */
 const ROOMS_URL=SERVER.replace(/^ws/,'http')+'/mistnosti';let roomsT=0,roomsData=null;
@@ -40,8 +42,12 @@ async function loadRooms(){try{const r=await fetch(ROOMS_URL,{cache:'no-store'})
 function renderRooms(){const el=$('mpRooms');if(!roomsData){el.innerHTML='<span class="keys">Server není dostupný.</span>';return}
   el.innerHTML=roomsData.map(r=>{const plno=r.hraci>=18||r.pripojeni>=22,txt=!r.pripojeni?'prázdná':`${r.hraci} ${r.hraci===1?'hráč':r.hraci<5?'hráči':'hráčů'}${r.pripojeni>r.hraci?` (+${r.pripojeni-r.hraci} vybírá)`:''} · ${r.hraje?'hraje se':'čeká se na start'}`;
     const kdo=(r.seznam||[]).map(p=>`${esc(p.n)}${p.r?' ('+(ROLE_N[p.r]||p.r)+')':''}`).join(', ');
-    return `<div class="room${r.pripojeni?' on':''}"><div><b>Hra ${r.c}</b><small>${txt}</small>${kdo?`<small class="kdo">${kdo}</small>`:''}</div><button class="big2" type="button" data-room="${r.c}"${plno?' disabled':''}>${plno?'Plno':'Připojit'}</button></div>`}).join('')}
-$('mpRooms').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b||b.disabled)return;const n=nameOk();if(!n)return;clearTimeout(roomsT);connect(b.dataset.room,n)});
+    const sn=r.pripojeni&&r.strana?(STRANY_DEF.find(x=>x.id===r.strana)||{n:r.strana}).n:'';
+    return `<div class="room${r.pripojeni?' on':''}"><div><b>Hra ${r.c}${sn?' · '+sn:''}</b><small>${txt}${r.pripojeni?'':' – založíš ji na straně '+STRANA_N}</small>${kdo?`<small class="kdo">${kdo}</small>`:''}</div><button class="big2" type="button" data-room="${r.c}"${plno?' disabled':''}>${plno?'Plno':'Připojit'}</button></div>`}).join('')}
+$('mpRooms').addEventListener('click',e=>{const b=e.target.closest('[data-room]');if(!b||b.disabled)return;const n=nameOk();if(!n)return;clearTimeout(roomsT);
+  const r=(roomsData||[]).find(x=>String(x.c)===b.dataset.room);
+  if(r&&r.pripojeni&&r.strana&&r.strana!==STRANA){mpMsg('Načítám stranu '+((STRANY_DEF.find(x=>x.id===r.strana)||{}).n||'')+'…');goStrana(r.strana,{scr:'mp',hra:b.dataset.room});return}
+  connect(b.dataset.room,n)});
 $('mpStart').onclick=()=>{if(!lobby)return;
   if(!myRole){mpErr('Vyber si postavu.',1);return}
   if(lobby.hraje){joinT=performance.now();NET.send({t:'join',to:lobby.host});mpMsg('Připojuji do rozehrané hry…');return}
@@ -52,7 +58,7 @@ $('bMenu').onclick=()=>{disconnect();showScreen('menu')};
 
 /* ---------- spojení ---------- */
 function connect(c,name){disconnect();code=c;mpMsg('Připojuji…');
-  try{ws=new WebSocket(`${SERVER}/mistnost/${encodeURIComponent(c)}?jmeno=${encodeURIComponent(name)}`)}catch(e){mpMsg('Server není dostupný.');return}
+  try{ws=new WebSocket(`${SERVER}/mistnost/${encodeURIComponent(c)}?jmeno=${encodeURIComponent(name)}&strana=${encodeURIComponent(STRANA)}`)}catch(e){mpMsg('Server není dostupný.');return}
   const me=ws;
   ws.onmessage=e=>{if(ws!==me)return;let m;try{m=JSON.parse(e.data)}catch(_){return}onMsg(m)};
   ws.onclose=()=>{if(ws!==me)return;ws=null;const was=NET.on&&state==='play';NET.on=false;inGame=false;lobby=null;
@@ -67,8 +73,8 @@ function onMsg(m){
   case 'plno':mpFull=true;break;
   case 'chyba':mpErr(m.m,1);myRole=(lobby&&(lobby.hraci.find(p=>p.id===NET.me)||{}).r)||'';renderMp();break;
   case 'lobby':onLobby(m);break;
-  case 'go':if(myRole&&m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board);break;
-  case 'team':if(inGame)syncTeam(m.team,m.board);else if(m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board);break;
+  case 'go':if(myRole&&m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board,m.st);break;
+  case 'team':if(inGame)syncTeam(m.team,m.board);else if(m.team.some(t=>t.pid===NET.me))startNet(m.team,m.board,m.st);break;
   case 'end':if(inGame)showEnd(m.reason,null,m.board);break;
   case 'p':onPlayer(m);break;
   case 's':if(inGame&&!NET.host)applySnap(m);break;
@@ -91,13 +97,16 @@ function onMsg(m){
   }}
 
 /* ---------- místnost (výběr postavy) ---------- */
-function onLobby(m){const wasHost=NET.host;lobby=m;
+function onLobby(m){
+  /* hra je na jiné straně, než je načtená (mezitím ji někdo založil znovu): načíst tu stranu a připojit se znovu */
+  if(!inGame&&m.strana&&m.strana!==STRANA){const c=code;disconnect();mpMsg('Načítám stranu…');goStrana(m.strana,{scr:'mp',hra:c});return}
+  const wasHost=NET.host;lobby=m;
   const mine=m.hraci.find(p=>p.id===NET.me);if(mine&&!inGame){myRole=mine.r}
   NET.host=m.host===NET.me;
   if(inGame&&state==='play'){if(NET.host&&!wasHost)becomeHost();if(NET.host)reconcile()}
   renderMp()}
 function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('mpRoom').classList.toggle('hide',!on);if(!on){if(!ws)roomsLoop();return}
-  $('mpRoomCode').textContent='Hra '+code;
+  $('mpRoomCode').textContent='Hra '+code+' · '+STRANA_N;
   $('mpList').innerHTML=lobby.hraci.map(p=>`<span>${esc(p.n)}${p.id===NET.me?' (ty)':''}${p.id===lobby.host?' ★':''}</span><b>${p.r?ROLE_N[p.r]:'vybírá…'}</b>`).join('');
   const taken={};for(const p of lobby.hraci)if(p.r&&p.id!==NET.me)taken[p.r]=(taken[p.r]||0)+1;
   const total=lobby.hraci.filter(p=>p.r&&p.r!=='napalovac'&&p.id!==NET.me).length;
@@ -115,7 +124,7 @@ function renderMp(){const on=!!lobby;$('mpJoin').classList.toggle('hide',on);$('
   else{$('mpStart').classList.add('hide');$('mpInfo').textContent='Čeká se, až zakladatel (★) vyjde na stranu.'}}
 
 /* ---------- start hry ---------- */
-function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=M.start||[0,0];
+function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=randStart();   /* náhodný start, stejný pro všechny */
   const pick=r=>ps.filter(p=>p.r===r);const add=(r,p,v)=>team.push({r,v:p?p.v:v,pid:p?p.id:null,n:p?p.n:''});
   add('mikulas',pick('mikulas')[0],1);
   const hc=pick('cert'),nC=Math.max(5,hc.length),freeV=[1,2,3,4,5].filter(v=>!hc.some(p=>p.v===v));let fi=0;
@@ -124,10 +133,10 @@ function hostStart(){const ps=lobby.hraci.filter(p=>p.r),team=[],s=M.start||[0,0
   const nD=team.length;for(const p of pick('napalovac'))add('napalovac',p,1);
   team.forEach((t,i)=>{if(t.r==='napalovac'){const[x,z]=napSpawn(s[0],s[1],28,40);t.x=r2(x);t.z=r2(z);t.f=0;return}const a=i/nD*Math.PI*2,p=new THREE.Vector3(s[0]+Math.cos(a)*2.5,0,s[1]+Math.sin(a)*2.5);pushOut(p,.45);t.x=r2(p.x);t.z=r2(p.z);t.f=r2(Math.PI)});
   const board={};for(const t of team)if(t.pid)board[t.pid]=newRow(t);
-  NET.send({t:'go',team,board});startNet(team,board)}
+  NET.send({t:'go',team,board,st:s});startNet(team,board,s)}
 const newRow=t=>({n:t.n,r:t.r,score:0,houses:0,caught:0,scareP:0,penalty:0,psi:0,nb:0,nk:0,nz:0,nc:0});
-function startNet(team,board){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.host===NET.me;NET.board=board||{};evQ=[];sendT=0;snapN=0;lastSnap=null;lastAct=performance.now();
-  resetGame(team);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
+function startNet(team,board,st){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.host===NET.me;NET.board=board||{};evQ=[];sendT=0;snapN=0;lastSnap=null;lastAct=performance.now();
+  resetGame(team,st);for(const e of ents)if(e.tx===undefined){e.tx=e.pos.x;e.tz=e.pos.z;e.tf=e.face}
   const b=NET.board[NET.me];if(b)myStats(b);
   state='play';navNear=false;setMapBig(false);showScreen('none');$('ui').classList.remove('hide');$('touch').classList.toggle('hide',!isTouch);
   $('bPause').classList.add('hide');$('bEnd').textContent='Odejít ze hry';boardT=0;renderBoard();
@@ -138,7 +147,7 @@ function startNet(team,board){NET.on=true;inGame=true;NET.host=!!lobby&&lobby.ho
 /* ---------- hostitel: příchody a odchody hráčů ---------- */
 function replaceMesh(e,r,v){scene.remove(e.mesh);e.mesh=makeRole(r,v);scene.add(e.mesh);e.role=r;e.v=v;e.topH=undefined}
 function teamMsg(){return ents.map(e=>({r:e.role,v:e.v,pid:e.pid,n:e.name,x:r2(e.pos.x),z:r2(e.pos.z),f:r2(e.face)}))}
-function sendTeam(){NET.send({t:'team',team:teamMsg(),board:NET.board});renderBoard()}
+function sendTeam(){NET.send({t:'team',team:teamMsg(),board:NET.board,st:curStart});renderBoard()}
 function hostJoin(pid){if(entBy(pid))return sendTeam();const p=lobby&&lobby.hraci.find(x=>x.id===pid);if(!p||!p.r)return;
   let e=ents.find(x=>!x.human&&x.role===p.r);
   if(!e){const L=leader(),[x,z]=p.r==='napalovac'?napSpawn(L.pos.x,L.pos.z,30,45):spawnPoint(L.pos.x,L.pos.z,2,5);e=newEnt(p.r,false,ents.length,p.v);e.pos.set(x,0,z);ents.push(e)}
@@ -284,4 +293,7 @@ setInterval(()=>{if(!(NET.on&&inGame&&state==='play'))return;if(document.hidden)
 document.addEventListener('visibilitychange',()=>{act();if(open())NET.send({t:'vis',away:document.hidden?1:0})});
 
 window.__mp={renderBoard:()=>{boardT=0;renderBoard()},get lobby(){return lobby},get code(){return code},connect,hostStart,get ws(){return ws},setRole:(r,v)=>{myRole=r;if(v)myVar=v;NET.send({t:'role',r,v:myVar})},act};
+/* po přepnutí strany: znovu otevřít okno Více hráčů, případně se rovnou připojit do hry */
+{const q=new URLSearchParams(location.search);if(q.get('scr')==='mp'){showScreen('mp');renderMp();const h=q.get('hra'),n=($('mpName').value||'').trim();if(h&&n){clearTimeout(roomsT);connect(h,n)}
+  for(const k of['scr','hra'])q.delete(k);try{history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:''))}catch(e){}}}
 })();

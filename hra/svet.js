@@ -1,5 +1,5 @@
 /* Svět Lidečka pro hru i editor: terén, potoky s mosty, silnice, domy, stromy, ploty, vlastní objekty a úpravy z editoru.
-   Data: © přispěvatelé OpenStreetMap (ODbL), ČÚZK (CC BY 4.0) – viz polnak.js. Grafika: three.js r128 (MIT). */
+   Data: © přispěvatelé OpenStreetMap (ODbL), ČÚZK (CC BY 4.0) – viz polnak.js / stred.js. Grafika: three.js r128 (MIT). */
 'use strict';
 const M = window.MAPA;
 const $ = id => document.getElementById(id);
@@ -14,7 +14,7 @@ function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(
 
 /* ===================== ÚPRAVY Z EDITORU ===================== */
 /* zdroj nastaví stránka do window.UPRAVY (hra: uložené v databázi, jinak soubor upravy.js; editor: i neuložený koncept z prohlížeče) */
-const UPR_KEY='lidecko-upravy';
+const UPR_KEY='lidecko-upravy'+(window.STRANA&&STRANA!=='polnak'?'-'+STRANA:'');   /* koncept editoru, každá strana zvlášť */
 function normUpr(u){u=u&&typeof u==='object'?u:{};u.v=1;u.t=u.t||0;u.b=u.b||{};u.r=u.r||{};u.nr=u.nr||[];u.cesty=u.cesty||{};u.o=u.o||[];u.mod=u.mod||{};u.st=u.st||[];return u}
 const UPR=normUpr(window.UPRAVY?JSON.parse(JSON.stringify(window.UPRAVY)):null);
 function saveUpr(){UPR.t=Date.now();try{localStorage.setItem(UPR_KEY,JSON.stringify(UPR));return true}catch(e){return false}}

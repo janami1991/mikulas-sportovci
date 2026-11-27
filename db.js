@@ -132,16 +132,18 @@ export const delKr = id => deleteDoc(doc(db, 'kronika', id));
 
 /* ===== mapa hry (úpravy z editoru): čte každý, ukládá jen správce; JSON po kouscích v kolekci mapa ===== */
 const MCH = 700000;
-export async function loadMapa() {
-  const m = await getDoc(doc(db, 'mapa', 'meta')); if (!m.exists()) return null;
-  const { n, t, by } = m.data(), parts = await Promise.all([...Array(n)].map((_, i) => getDoc(doc(db, 'mapa', 'u' + i))));
+/* každá strana má vlastní dokumenty: Polňák meta, u0…; ostatní strany <strana>_meta, <strana>_u0… */
+const mpre = s => !s || s === 'polnak' ? '' : s + '_';
+export async function loadMapa(strana) {
+  const P = mpre(strana), m = await getDoc(doc(db, 'mapa', P + 'meta')); if (!m.exists()) return null;
+  const { n, t, by } = m.data(), parts = await Promise.all([...Array(n)].map((_, i) => getDoc(doc(db, 'mapa', P + 'u' + i))));
   return { t, by, json: parts.map(p => p.data().d).join('') }
 }
-export async function saveMapa(json, t) {
-  const old = await getDoc(doc(db, 'mapa', 'meta')), n0 = old.exists() ? old.data().n : 0, n = Math.max(1, Math.ceil(json.length / MCH)), b = writeBatch(db);
-  for (let i = 0; i < n; i++) b.set(doc(db, 'mapa', 'u' + i), { d: json.slice(i * MCH, (i + 1) * MCH) });
-  for (let i = n; i < n0; i++) b.delete(doc(db, 'mapa', 'u' + i));
-  b.set(doc(db, 'mapa', 'meta'), { n, t, by: ME ? ME.jmeno : '' });
+export async function saveMapa(json, t, strana) {
+  const P = mpre(strana), old = await getDoc(doc(db, 'mapa', P + 'meta')), n0 = old.exists() ? old.data().n : 0, n = Math.max(1, Math.ceil(json.length / MCH)), b = writeBatch(db);
+  for (let i = 0; i < n; i++) b.set(doc(db, 'mapa', P + 'u' + i), { d: json.slice(i * MCH, (i + 1) * MCH) });
+  for (let i = n; i < n0; i++) b.delete(doc(db, 'mapa', P + 'u' + i));
+  b.set(doc(db, 'mapa', P + 'meta'), { n, t, by: ME ? ME.jmeno : '' });
   await b.commit()
 }
 

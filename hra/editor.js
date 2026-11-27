@@ -423,7 +423,7 @@ function panelSoubor(){const nb=Object.keys(UPR.b).length,no=UPR.o.length,nr=Obj
   return `<div class="sec"><h2>Přehled úprav</h2><div class="info">Domy: ${nb} · silnice: ${nr} · cesty k domům: ${nc} · objekty: ${no} · smazané stromy: ${UPR.st.length}</div>
   <div class="note">Rozdělané změny se průběžně drží v tomto prohlížeči. Hra je uvidí až po <b>Uložit změny</b> (vpravo nahoře) – pak se načtou na každém počítači i mobilu.</div>
   <div class="btns"><button class="btn pri" id="sSave" type="button">Uložit změny</button><button class="btn" id="sDiscard" type="button">Zahodit neuložené změny</button></div></div>
-  <div class="sec"><h2>Záloha do souboru</h2><div class="btns"><button class="btn" id="sDown" type="button">Stáhnout upravy.js</button></div>
+  <div class="sec"><h2>Záloha do souboru</h2><div class="btns"><button class="btn" id="sDown" type="button">Stáhnout zálohu (${STRANA_N})</button></div>
   <div class="note">Záložní kopie úprav. Načtením ze souboru se úpravy jen otevřou v editoru – do hry je dostaneš tlačítkem Uložit změny.</div>
   <div class="row"><label>Načíst ze souboru</label><input type="file" id="sUp" accept=".js,.json" style="width:150px"></div></div>
   <div class="sec"><h2>Vše zrušit</h2><div class="btns"><button class="btn warn" id="sClear" type="button">Smazat všechny úpravy</button></div><div class="note">Jde vrátit tlačítkem ↶ Zpět, dokud editor nezavřeš.</div></div>
@@ -431,7 +431,7 @@ function panelSoubor(){const nb=Object.keys(UPR.b).length,no=UPR.o.length,nr=Obj
 function bindSoubor(){$('sSave').onclick=saveAll;$('sDiscard').onclick=()=>{if(!isDirty()){toast('Nic neuloženého není');return}if(!confirm('Zahodit všechny neuložené změny a vrátit uložený stav?'))return;
     try{localStorage.removeItem(UPR_KEY)}catch(e){}removeEventListener('beforeunload',onLeave);location.reload()};
   $('sDown').onclick=()=>{saveUpr();const blob=new Blob(['/* Úpravy mapy z editoru (Mikulášská obchůzka Lidečko) */\nwindow.UPRAVY='+JSON.stringify(UPR)+';\n'],{type:'text/javascript'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='upravy.js';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=window.STRANA&&STRANA!=='polnak'?'upravy_'+STRANA+'.js':'upravy.js';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
   $('sUp').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{let t=rd.result.trim();const i=t.indexOf('{');t=t.slice(i).replace(/;\s*$/,'');
     let u;try{u=JSON.parse(t)}catch(err){toast('Soubor se nepodařilo přečíst');return}snap();for(const k of Object.keys(UPR))delete UPR[k];Object.assign(UPR,normUpr(u));
     ED.b=null;ED.line=null;ED.obj=null;buildWorld();changed();render();toast('Úpravy načteny')};rd.readAsText(f)};
